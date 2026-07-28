@@ -1,0 +1,32 @@
+[project]
+name = "enterprise-agents-on-foundry"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Shiva Chittamuru", email = "shiva.vy147@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "azure-identity>=1.25.3",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.2",
+    "python-dotenv>=1.2.2",
+]
+
+[project.scripts]
+enterprise-agents-on-foundry = "enterprise_agents_on_foundry:main"
+
+[build-system]
+requires = ["uv_build>=0.8.3,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.3.0",
+    "jupyter>=1.1.1",
+    "mypy>=2.3.0",
+    "nbformat>=5.10.4",
+    "pytest>=9.1.1",
+    "ruff>=0.16.0",
+]
