@@ -48,16 +48,30 @@ param autoPauseDelayMinutes int
 @description('Maximum vCores for the serverless database.')
 param maxVCores int
 
-@description('Client IP address permitted to reach the server. Empty adds no rule.')
-param allowedClientIpAddress string
+@description('Whether the server exposes a public endpoint. v0.1 uses a public endpoint restricted by firewall rules. Set false only when private endpoints are in place, because no firewall rule can be created while this is false.')
+param sqlPublicNetworkAccessEnabled bool = true
 
-@description('Whether the server accepts public network traffic.')
-param publicNetworkAccess string
+@description('Create the AllowAllWindowsAzureIps rule so Azure-hosted callers can reach the server. Requires sqlPublicNetworkAccessEnabled.')
+param allowAzureServices bool = true
+
+@description('Single client IP address permitted to reach the server, for local notebook use. Empty adds no rule. Ranges are deliberately not supported.')
+param developerClientIp string = ''
+
+@description('Apply the SecurityControl=Ignore tag that exempts this server from the AzureSQL_PublicNetwork_Modify governance policy. Off by default. Turning it on weakens a tenant security control, so it is an explicit decision.')
+param applyPublicNetworkPolicyExemptionTag bool = false
+
+// The Azure SQL resource provider rejects any firewall rule write while the
+// public endpoint is off, with error DenyPublicEndpointEnabled. Both rules below
+// are therefore gated on sqlPublicNetworkAccessEnabled, never on the IP alone.
+var publicNetworkAccess = sqlPublicNetworkAccessEnabled ? 'Enabled' : 'Disabled'
+
+// Tag name and value are fixed by the policy definition, not chosen here.
+var serverTags = applyPublicNetworkPolicyExemptionTag ? union(tags, { SecurityControl: 'Ignore' }) : tags
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01' = {
   name: sqlServerName
   location: location
-  tags: tags
+  tags: serverTags
   identity: {
     type: 'SystemAssigned'
   }
@@ -104,30 +118,33 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01' = {
   }
 }
 
-// Lets Azure-hosted callers reach the server. This rule grants no data access on
-// its own, because Entra authentication and database role membership are still
-// required.
-resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2023-08-01' = if (publicNetworkAccess == 'Enabled') {
-  parent: sqlServer
-  name: 'AllowAllWindowsAzureIps'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
+// The 0.0.0.0 to 0.0.0.0 pair is the documented sentinel for "Azure services",
+// not an address range. It grants no data access on its own, because Entra
+// authentication and database role membership are still required.
+resource azureServicesRule 'Microsoft.Sql/servers/firewallRules@2023-08-01' =
+  if (sqlPublicNetworkAccessEnabled && allowAzureServices) {
+    parent: sqlServer
+    name: 'AllowAllWindowsAzureIps'
+    properties: {
+      startIpAddress: '0.0.0.0'
+      endIpAddress: '0.0.0.0'
+    }
   }
-}
 
-// A single client address, not a range. Broad ranges are deliberately not
-// supported by this module.
-resource allowClientIp 'Microsoft.Sql/servers/firewallRules@2023-08-01' = if (publicNetworkAccess == 'Enabled' && !empty(allowedClientIpAddress)) {
-  parent: sqlServer
-  name: 'AllowDeveloperClient'
-  properties: {
-    startIpAddress: allowedClientIpAddress
-    endIpAddress: allowedClientIpAddress
+// A single client address, not a range. An unrestricted 0.0.0.0 to
+// 255.255.255.255 rule is deliberately not expressible through this module.
+resource developerClientRule 'Microsoft.Sql/servers/firewallRules@2023-08-01' =
+  if (sqlPublicNetworkAccessEnabled && !empty(developerClientIp)) {
+    parent: sqlServer
+    name: 'AllowDeveloperClient'
+    properties: {
+      startIpAddress: developerClientIp
+      endIpAddress: developerClientIp
+    }
   }
-}
 
 output serverName string = sqlServer.name
+output publicNetworkAccess string = sqlServer.properties.publicNetworkAccess
 output serverId string = sqlServer.id
 output serverFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output databaseName string = sqlDatabase.name

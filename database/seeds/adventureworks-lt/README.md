@@ -45,7 +45,7 @@ materialise.
    prints the server and database it resolved and exits without connecting:
 
    ```console
-   uv run python scripts/bootstrap_database.py
+   uv run --extra database python scripts/bootstrap_database.py
    ```
 
    With `ALLOW_DATABASE_BOOTSTRAP` unset or `false`, the script refuses to
@@ -69,7 +69,7 @@ materialise.
 4. Re-run validation to confirm the schema and row counts match expectations:
 
    ```console
-   uv run python scripts/bootstrap_database.py --validate-only
+   uv run --extra database python scripts/bootstrap_database.py --validate-only
    ```
 
 ## Read-only grant for the agent identity

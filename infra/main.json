@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "12632180171718461348"
+      "templateHash": "16783347377849928375"
     }
   },
   "parameters": {
@@ -154,11 +154,32 @@
         "description": "Maximum vCores for the serverless database."
       }
     },
-    "allowedClientIpAddress": {
+    "sqlPublicNetworkAccessEnabled": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Expose the Azure SQL server on a public endpoint restricted by firewall rules. v0.1 needs this to reach the database from a local notebook. Firewall rules cannot be created when this is false."
+      }
+    },
+    "allowAzureServices": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Create the AllowAllWindowsAzureIps rule so Azure-hosted callers can reach the SQL server."
+      }
+    },
+    "developerClientIp": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Client IP address permitted to reach the SQL server. Leave empty to add no client rule."
+        "description": "Single client IP address permitted to reach the SQL server. Obtain with: curl -s https://api.ipify.org. Leave empty to add no client rule."
+      }
+    },
+    "applyPublicNetworkPolicyExemptionTag": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Apply the SecurityControl=Ignore tag that exempts the SQL server from the tenant AzureSQL_PublicNetwork_Modify policy. Without it that policy rewrites publicNetworkAccess to Disabled and every firewall rule fails. Off by default because it weakens a governance control."
       }
     },
     "enableContainerRegistry": {
@@ -290,8 +311,17 @@
           "sqlMaxVCores": {
             "value": "[parameters('sqlMaxVCores')]"
           },
-          "allowedClientIpAddress": {
-            "value": "[parameters('allowedClientIpAddress')]"
+          "sqlPublicNetworkAccessEnabled": {
+            "value": "[parameters('sqlPublicNetworkAccessEnabled')]"
+          },
+          "allowAzureServices": {
+            "value": "[parameters('allowAzureServices')]"
+          },
+          "developerClientIp": {
+            "value": "[parameters('developerClientIp')]"
+          },
+          "applyPublicNetworkPolicyExemptionTag": {
+            "value": "[parameters('applyPublicNetworkPolicyExemptionTag')]"
           },
           "enableContainerRegistry": {
             "value": "[parameters('enableContainerRegistry')]"
@@ -307,7 +337,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.45.15.27210",
-              "templateHash": "2178067869432036373"
+              "templateHash": "17557027297465107474"
             }
           },
           "parameters": {
@@ -415,10 +445,28 @@
                 "description": "Maximum vCores for the serverless database."
               }
             },
-            "allowedClientIpAddress": {
+            "sqlPublicNetworkAccessEnabled": {
+              "type": "bool",
+              "metadata": {
+                "description": "Whether the Azure SQL server exposes a public endpoint restricted by firewall rules."
+              }
+            },
+            "allowAzureServices": {
+              "type": "bool",
+              "metadata": {
+                "description": "Create the AllowAllWindowsAzureIps rule on the Azure SQL server."
+              }
+            },
+            "developerClientIp": {
               "type": "string",
               "metadata": {
-                "description": "Client IP address permitted to reach the SQL server."
+                "description": "Single client IP address permitted to reach the SQL server."
+              }
+            },
+            "applyPublicNetworkPolicyExemptionTag": {
+              "type": "bool",
+              "metadata": {
+                "description": "Apply the SecurityControl=Ignore tag exempting the SQL server from the public network governance policy."
               }
             },
             "enableContainerRegistry": {
@@ -436,7 +484,8 @@
           },
           "variables": {
             "namePrefix": "[format('eaof-{0}', parameters('environmentName'))]",
-            "publicNetworkAccess": "[if(parameters('enablePrivateNetworking'), 'Disabled', 'Enabled')]"
+            "publicNetworkAccess": "[if(parameters('enablePrivateNetworking'), 'Disabled', 'Enabled')]",
+            "sqlPublicEndpoint": "[and(parameters('sqlPublicNetworkAccessEnabled'), not(parameters('enablePrivateNetworking')))]"
           },
           "resources": [
             {
@@ -1020,11 +1069,17 @@
                   "maxVCores": {
                     "value": "[parameters('sqlMaxVCores')]"
                   },
-                  "allowedClientIpAddress": {
-                    "value": "[parameters('allowedClientIpAddress')]"
+                  "sqlPublicNetworkAccessEnabled": {
+                    "value": "[variables('sqlPublicEndpoint')]"
                   },
-                  "publicNetworkAccess": {
-                    "value": "[variables('publicNetworkAccess')]"
+                  "allowAzureServices": {
+                    "value": "[parameters('allowAzureServices')]"
+                  },
+                  "developerClientIp": {
+                    "value": "[parameters('developerClientIp')]"
+                  },
+                  "applyPublicNetworkPolicyExemptionTag": {
+                    "value": "[parameters('applyPublicNetworkPolicyExemptionTag')]"
                   }
                 },
                 "template": {
@@ -1034,7 +1089,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.45.15.27210",
-                      "templateHash": "2754438173101035821"
+                      "templateHash": "10145779260923944526"
                     }
                   },
                   "parameters": {
@@ -1103,18 +1158,38 @@
                         "description": "Maximum vCores for the serverless database."
                       }
                     },
-                    "allowedClientIpAddress": {
-                      "type": "string",
+                    "sqlPublicNetworkAccessEnabled": {
+                      "type": "bool",
+                      "defaultValue": true,
                       "metadata": {
-                        "description": "Client IP address permitted to reach the server. Empty adds no rule."
+                        "description": "Whether the server exposes a public endpoint. v0.1 uses a public endpoint restricted by firewall rules. Set false only when private endpoints are in place, because no firewall rule can be created while this is false."
                       }
                     },
-                    "publicNetworkAccess": {
-                      "type": "string",
+                    "allowAzureServices": {
+                      "type": "bool",
+                      "defaultValue": true,
                       "metadata": {
-                        "description": "Whether the server accepts public network traffic."
+                        "description": "Create the AllowAllWindowsAzureIps rule so Azure-hosted callers can reach the server. Requires sqlPublicNetworkAccessEnabled."
+                      }
+                    },
+                    "developerClientIp": {
+                      "type": "string",
+                      "defaultValue": "",
+                      "metadata": {
+                        "description": "Single client IP address permitted to reach the server, for local notebook use. Empty adds no rule. Ranges are deliberately not supported."
+                      }
+                    },
+                    "applyPublicNetworkPolicyExemptionTag": {
+                      "type": "bool",
+                      "defaultValue": false,
+                      "metadata": {
+                        "description": "Apply the SecurityControl=Ignore tag that exempts this server from the AzureSQL_PublicNetwork_Modify governance policy. Off by default. Turning it on weakens a tenant security control, so it is an explicit decision."
                       }
                     }
+                  },
+                  "variables": {
+                    "publicNetworkAccess": "[if(parameters('sqlPublicNetworkAccessEnabled'), 'Enabled', 'Disabled')]",
+                    "serverTags": "[if(parameters('applyPublicNetworkPolicyExemptionTag'), union(parameters('tags'), createObject('SecurityControl', 'Ignore')), parameters('tags'))]"
                   },
                   "resources": [
                     {
@@ -1122,14 +1197,14 @@
                       "apiVersion": "2023-08-01",
                       "name": "[parameters('sqlServerName')]",
                       "location": "[parameters('location')]",
-                      "tags": "[parameters('tags')]",
+                      "tags": "[variables('serverTags')]",
                       "identity": {
                         "type": "SystemAssigned"
                       },
                       "properties": {
                         "version": "12.0",
                         "minimalTlsVersion": "1.2",
-                        "publicNetworkAccess": "[parameters('publicNetworkAccess')]",
+                        "publicNetworkAccess": "[variables('publicNetworkAccess')]",
                         "restrictOutboundNetworkAccess": "Disabled",
                         "administrators": {
                           "administratorType": "ActiveDirectory",
@@ -1168,7 +1243,7 @@
                       ]
                     },
                     {
-                      "condition": "[equals(parameters('publicNetworkAccess'), 'Enabled')]",
+                      "condition": "[and(parameters('sqlPublicNetworkAccessEnabled'), parameters('allowAzureServices'))]",
                       "type": "Microsoft.Sql/servers/firewallRules",
                       "apiVersion": "2023-08-01",
                       "name": "[format('{0}/{1}', parameters('sqlServerName'), 'AllowAllWindowsAzureIps')]",
@@ -1181,13 +1256,13 @@
                       ]
                     },
                     {
-                      "condition": "[and(equals(parameters('publicNetworkAccess'), 'Enabled'), not(empty(parameters('allowedClientIpAddress'))))]",
+                      "condition": "[and(parameters('sqlPublicNetworkAccessEnabled'), not(empty(parameters('developerClientIp'))))]",
                       "type": "Microsoft.Sql/servers/firewallRules",
                       "apiVersion": "2023-08-01",
                       "name": "[format('{0}/{1}', parameters('sqlServerName'), 'AllowDeveloperClient')]",
                       "properties": {
-                        "startIpAddress": "[parameters('allowedClientIpAddress')]",
-                        "endIpAddress": "[parameters('allowedClientIpAddress')]"
+                        "startIpAddress": "[parameters('developerClientIp')]",
+                        "endIpAddress": "[parameters('developerClientIp')]"
                       },
                       "dependsOn": [
                         "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
@@ -1198,6 +1273,10 @@
                     "serverName": {
                       "type": "string",
                       "value": "[parameters('sqlServerName')]"
+                    },
+                    "publicNetworkAccess": {
+                      "type": "string",
+                      "value": "[reference(resourceId('Microsoft.Sql/servers', parameters('sqlServerName')), '2023-08-01').publicNetworkAccess]"
                     },
                     "serverId": {
                       "type": "string",
@@ -1501,6 +1580,10 @@
               "type": "string",
               "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sql'), '2025-04-01').outputs.serverFqdn.value]"
             },
+            "sqlPublicNetworkAccess": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sql'), '2025-04-01').outputs.publicNetworkAccess.value]"
+            },
             "sqlDatabaseName": {
               "type": "string",
               "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sql'), '2025-04-01').outputs.databaseName.value]"
@@ -1601,6 +1684,10 @@
     "AZURE_SQL_AUTHENTICATION": {
       "type": "string",
       "value": "entra"
+    },
+    "AZURE_SQL_PUBLIC_NETWORK_ACCESS": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', format('platform-{0}', parameters('environmentName'))), '2025-04-01').outputs.sqlPublicNetworkAccess.value]"
     },
     "AZURE_LOG_ANALYTICS_WORKSPACE_NAME": {
       "type": "string",

@@ -61,8 +61,17 @@ param sqlAutoPauseDelayMinutes int
 @description('Maximum vCores for the serverless database.')
 param sqlMaxVCores int
 
-@description('Client IP address permitted to reach the SQL server.')
-param allowedClientIpAddress string
+@description('Whether the Azure SQL server exposes a public endpoint restricted by firewall rules.')
+param sqlPublicNetworkAccessEnabled bool
+
+@description('Create the AllowAllWindowsAzureIps rule on the Azure SQL server.')
+param allowAzureServices bool
+
+@description('Single client IP address permitted to reach the SQL server.')
+param developerClientIp string
+
+@description('Apply the SecurityControl=Ignore tag exempting the SQL server from the public network governance policy.')
+param applyPublicNetworkPolicyExemptionTag bool
 
 @description('Provision an Azure Container Registry.')
 param enableContainerRegistry bool
@@ -79,6 +88,10 @@ param enablePrivateNetworking bool
 
 var namePrefix = 'eaof-${environmentName}'
 var publicNetworkAccess = enablePrivateNetworking ? 'Disabled' : 'Enabled'
+
+// Private networking wins over the SQL switch, so enabling private endpoints can
+// never leave a public endpoint behind.
+var sqlPublicEndpoint = sqlPublicNetworkAccessEnabled && !enablePrivateNetworking
 
 // -----------------------------------------------------------------------------
 // Modules
@@ -143,8 +156,10 @@ module sql 'sql.bicep' = {
     useBuiltInSample: sqlUseBuiltInSample
     autoPauseDelayMinutes: sqlAutoPauseDelayMinutes
     maxVCores: sqlMaxVCores
-    allowedClientIpAddress: allowedClientIpAddress
-    publicNetworkAccess: publicNetworkAccess
+    sqlPublicNetworkAccessEnabled: sqlPublicEndpoint
+    allowAzureServices: allowAzureServices
+    developerClientIp: developerClientIp
+    applyPublicNetworkPolicyExemptionTag: applyPublicNetworkPolicyExemptionTag
   }
 }
 
@@ -180,6 +195,7 @@ output foundryProjectEndpoint string = foundry.outputs.projectEndpoint
 
 output sqlServerName string = sql.outputs.serverName
 output sqlServerFqdn string = sql.outputs.serverFqdn
+output sqlPublicNetworkAccess string = sql.outputs.publicNetworkAccess
 output sqlDatabaseName string = sql.outputs.databaseName
 
 output logAnalyticsWorkspaceName string = monitoring.outputs.logAnalyticsWorkspaceName

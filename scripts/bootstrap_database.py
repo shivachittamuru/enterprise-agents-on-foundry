@@ -14,8 +14,8 @@ Safety model:
   stored, or printed.
 
 Usage:
-    uv run python scripts/bootstrap_database.py
-    uv run python scripts/bootstrap_database.py --validate-only
+    uv run --extra database python scripts/bootstrap_database.py
+    uv run --extra database python scripts/bootstrap_database.py --validate-only
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from enterprise_agents_on_foundry.setup.config import Settings, load_settings, r
 from enterprise_agents_on_foundry.setup.database import (
     DatabaseTarget,
     DatabaseTargetError,
+    assert_odbc_driver_available,
     assert_read_only_sql,
     require_bootstrap_allowed,
     resolve_database_target,
@@ -54,6 +55,14 @@ def _connect(target: DatabaseTarget, settings: Settings) -> Any:
         import pyodbc
     except ImportError:
         print(_ODBC_HINT)
+        raise SystemExit(2) from None
+
+    # Checked before connecting so a missing driver reports itself rather than
+    # surfacing as pyodbc IM002.
+    try:
+        assert_odbc_driver_available()
+    except DatabaseTargetError as error:
+        print(f"\n{error}")
         raise SystemExit(2) from None
 
     from azure.identity import DefaultAzureCredential

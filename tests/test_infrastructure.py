@@ -7,6 +7,7 @@ during a later refactor, and a compile check would not catch any of them.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -65,6 +66,81 @@ def test_sql_database_is_serverless_and_auto_pauses(infra: Path) -> None:
 
     assert "GP_S_Gen5" in content
     assert "autoPauseDelay" in content
+
+
+def _sql_firewall_rules(infra: Path) -> list[tuple[str, str]]:
+    """Return (symbolic name, deployment condition) for every firewall rule."""
+    content = (infra / "modules" / "sql.bicep").read_text(encoding="utf-8")
+    pattern = re.compile(
+        r"resource\s+(?P<symbol>\w+)\s+'Microsoft\.Sql/servers/firewallRules@[^']+'\s*="
+        r"(?P<condition>.*?)\{",
+        re.DOTALL,
+    )
+    return [(m.group("symbol"), m.group("condition").strip()) for m in pattern.finditer(content)]
+
+
+def test_sql_declares_the_expected_firewall_rules(infra: Path) -> None:
+    """Guards the assumption the rest of these tests rely on."""
+    symbols = [symbol for symbol, _ in _sql_firewall_rules(infra)]
+
+    assert symbols == ["azureServicesRule", "developerClientRule"]
+
+
+def test_no_firewall_rule_can_be_emitted_without_public_network_access(infra: Path) -> None:
+    """The SQL RP fails a deployment with DenyPublicEndpointEnabled otherwise.
+
+    Every firewall rule must be conditional on the public endpoint switch, never
+    on the client IP or the Azure services flag alone.
+    """
+    rules = _sql_firewall_rules(infra)
+    assert rules, "expected at least one firewall rule to be declared"
+
+    for symbol, condition in rules:
+        assert condition.startswith("if ("), f"{symbol} is created unconditionally"
+        assert "sqlPublicNetworkAccessEnabled" in condition, f"{symbol} is not gated on sqlPublicNetworkAccessEnabled"
+
+
+def test_azure_services_rule_also_honours_its_own_switch(infra: Path) -> None:
+    condition = dict(_sql_firewall_rules(infra))["azureServicesRule"]
+
+    assert "allowAzureServices" in condition
+
+
+def test_developer_rule_requires_an_explicit_address(infra: Path) -> None:
+    condition = dict(_sql_firewall_rules(infra))["developerClientRule"]
+
+    assert "!empty(developerClientIp)" in condition
+
+
+def test_sql_never_opens_an_unrestricted_address_range(infra: Path) -> None:
+    """0.0.0.0 to 0.0.0.0 is the Azure services sentinel and is allowed.
+
+    A genuine any-address range is not.
+    """
+    lines = (infra / "modules" / "sql.bicep").read_text(encoding="utf-8").splitlines()
+    code = "\n".join(line for line in lines if not line.strip().startswith("//"))
+
+    assert "255.255.255.255" not in code
+
+
+def test_private_networking_overrides_the_sql_public_endpoint(infra: Path) -> None:
+    """Turning on private networking must not leave a public endpoint behind."""
+    content = (infra / "modules" / "platform.bicep").read_text(encoding="utf-8")
+
+    assert "sqlPublicNetworkAccessEnabled && !enablePrivateNetworking" in content
+
+
+def test_policy_exemption_tag_is_opt_in(infra: Path) -> None:
+    """Bypassing a tenant security policy must never be the default."""
+    content = (infra / "main.bicep").read_text(encoding="utf-8")
+
+    assert "param applyPublicNetworkPolicyExemptionTag bool = false" in content
+
+
+def test_policy_exemption_tag_is_applied_only_when_requested(infra: Path) -> None:
+    content = (infra / "modules" / "sql.bicep").read_text(encoding="utf-8")
+
+    assert "applyPublicNetworkPolicyExemptionTag ? union(tags, { SecurityControl: 'Ignore' }) : tags" in content
 
 
 def test_foundry_disables_local_authentication(infra: Path) -> None:

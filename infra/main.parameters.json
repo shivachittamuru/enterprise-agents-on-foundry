@@ -56,8 +56,17 @@
     "sqlMaxVCores": {
       "value": "${AZURE_SQL_MAX_VCORES=1}"
     },
-    "allowedClientIpAddress": {
-      "value": "${AZURE_SQL_ALLOWED_CLIENT_IP=}"
+    "sqlPublicNetworkAccessEnabled": {
+      "value": "${AZURE_SQL_PUBLIC_NETWORK_ACCESS_ENABLED=true}"
+    },
+    "allowAzureServices": {
+      "value": "${AZURE_SQL_ALLOW_AZURE_SERVICES=true}"
+    },
+    "developerClientIp": {
+      "value": "${AZURE_SQL_DEVELOPER_CLIENT_IP=}"
+    },
+    "applyPublicNetworkPolicyExemptionTag": {
+      "value": "${AZURE_SQL_APPLY_POLICY_EXEMPTION_TAG=false}"
     },
     "enableContainerRegistry": {
       "value": "${ENABLE_CONTAINER_REGISTRY=false}"

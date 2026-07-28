@@ -62,7 +62,7 @@ azd auth login
 azd env new dev
 uv run python scripts/preprovision_check.py
 azd provision
-uv run python scripts/bootstrap_database.py
+uv run --extra database python scripts/bootstrap_database.py
 ```
 
 Tear down with `azd down --purge`.

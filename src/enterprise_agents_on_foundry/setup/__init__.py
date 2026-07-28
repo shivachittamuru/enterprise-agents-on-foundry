@@ -23,10 +23,13 @@ from enterprise_agents_on_foundry.setup.config import (
     repository_root,
 )
 from enterprise_agents_on_foundry.setup.database import (
+    REQUIRED_ODBC_DRIVER,
     DatabaseTarget,
     DatabaseTargetError,
     ReadOnlySqlError,
+    assert_odbc_driver_available,
     assert_read_only_sql,
+    installed_odbc_drivers,
     is_read_only_sql,
     require_bootstrap_allowed,
     resolve_database_target,
@@ -51,6 +54,7 @@ from enterprise_agents_on_foundry.setup.prereqs import (
 
 __all__ = [
     "DEFAULT_DATASET_VARIANT",
+    "REQUIRED_ODBC_DRIVER",
     "AzureAccount",
     "AzureContextError",
     "CatalogModel",
@@ -66,6 +70,7 @@ __all__ = [
     "Settings",
     "SubscriptionCheck",
     "ToolCheck",
+    "assert_odbc_driver_available",
     "assert_read_only_sql",
     "check_all_prerequisites",
     "check_model_availability",
@@ -73,6 +78,7 @@ __all__ = [
     "get_settings",
     "get_signed_in_account",
     "get_signed_in_principal_id",
+    "installed_odbc_drivers",
     "is_read_only_sql",
     "list_catalog_models",
     "load_azd_env_values",

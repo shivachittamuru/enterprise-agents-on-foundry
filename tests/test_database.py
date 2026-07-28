@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import pytest
 
+from enterprise_agents_on_foundry.setup import database
 from enterprise_agents_on_foundry.setup.config import Settings
 from enterprise_agents_on_foundry.setup.database import (
+    REQUIRED_ODBC_DRIVER,
     DatabaseTargetError,
     ReadOnlySqlError,
     assert_read_only_sql,
@@ -124,6 +126,33 @@ def test_connection_string_never_contains_a_password() -> None:
     assert "uid=" not in lowered
     assert "encrypt=yes" in lowered
     assert "trustservercertificate=no" in lowered
+
+
+def test_connection_string_requests_the_supported_driver() -> None:
+    """Driver 17 predates several Entra authentication modes."""
+    connection_string = resolve_database_target(_settings()).odbc_connection_string()
+
+    assert f"Driver={{{REQUIRED_ODBC_DRIVER}}}" in connection_string
+    assert REQUIRED_ODBC_DRIVER == "ODBC Driver 18 for SQL Server"
+
+
+def test_missing_driver_explains_how_to_install_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A bare pyodbc IM002 does not say which driver is wanted."""
+    monkeypatch.setattr(database, "installed_odbc_drivers", lambda: ("SQL Server",))
+
+    with pytest.raises(DatabaseTargetError) as error:
+        database.assert_odbc_driver_available()
+
+    message = str(error.value)
+    assert REQUIRED_ODBC_DRIVER in message
+    assert "msodbcsql18" in message
+    assert "SQL Server" in message
+
+
+def test_present_driver_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(database, "installed_odbc_drivers", lambda: (REQUIRED_ODBC_DRIVER,))
+
+    database.assert_odbc_driver_available()
 
 
 def test_display_is_safe_to_log() -> None:

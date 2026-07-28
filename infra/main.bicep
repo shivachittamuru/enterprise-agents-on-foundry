@@ -102,8 +102,17 @@ param sqlAutoPauseDelayMinutes int = 60
 @description('Maximum vCores for the serverless database.')
 param sqlMaxVCores int = 1
 
-@description('Client IP address permitted to reach the SQL server. Leave empty to add no client rule.')
-param allowedClientIpAddress string = ''
+@description('Expose the Azure SQL server on a public endpoint restricted by firewall rules. v0.1 needs this to reach the database from a local notebook. Firewall rules cannot be created when this is false.')
+param sqlPublicNetworkAccessEnabled bool = true
+
+@description('Create the AllowAllWindowsAzureIps rule so Azure-hosted callers can reach the SQL server.')
+param allowAzureServices bool = true
+
+@description('Single client IP address permitted to reach the SQL server. Obtain with: curl -s https://api.ipify.org. Leave empty to add no client rule.')
+param developerClientIp string = ''
+
+@description('Apply the SecurityControl=Ignore tag that exempts the SQL server from the tenant AzureSQL_PublicNetwork_Modify policy. Without it that policy rewrites publicNetworkAccess to Disabled and every firewall rule fails. Off by default because it weakens a governance control.')
+param applyPublicNetworkPolicyExemptionTag bool = false
 
 // -----------------------------------------------------------------------------
 // Feature flags
@@ -183,7 +192,10 @@ module platform 'modules/platform.bicep' = {
     sqlUseBuiltInSample: sqlUseBuiltInSample
     sqlAutoPauseDelayMinutes: sqlAutoPauseDelayMinutes
     sqlMaxVCores: sqlMaxVCores
-    allowedClientIpAddress: allowedClientIpAddress
+    sqlPublicNetworkAccessEnabled: sqlPublicNetworkAccessEnabled
+    allowAzureServices: allowAzureServices
+    developerClientIp: developerClientIp
+    applyPublicNetworkPolicyExemptionTag: applyPublicNetworkPolicyExemptionTag
     enableContainerRegistry: enableContainerRegistry
     enablePrivateNetworking: enablePrivateNetworking
   }
@@ -215,6 +227,7 @@ output AZURE_SQL_SERVER_NAME string = platform.outputs.sqlServerName
 output AZURE_SQL_SERVER_FQDN string = platform.outputs.sqlServerFqdn
 output AZURE_SQL_DATABASE_NAME string = sqlDatabaseName
 output AZURE_SQL_AUTHENTICATION string = 'entra'
+output AZURE_SQL_PUBLIC_NETWORK_ACCESS string = platform.outputs.sqlPublicNetworkAccess
 
 output AZURE_LOG_ANALYTICS_WORKSPACE_NAME string = platform.outputs.logAnalyticsWorkspaceName
 output AZURE_KEY_VAULT_NAME string = platform.outputs.keyVaultName

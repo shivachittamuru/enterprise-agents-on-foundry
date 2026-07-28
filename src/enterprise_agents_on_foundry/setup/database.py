@@ -60,6 +60,19 @@ _FORBIDDEN_KEYWORDS: tuple[str, ...] = (
 
 _FORBIDDEN_PREFIXES: tuple[str, ...] = ("sp_", "xp_")
 
+# Driver 17 predates several Entra authentication modes and is not accepted here.
+REQUIRED_ODBC_DRIVER = "ODBC Driver 18 for SQL Server"
+
+_ODBC_INSTALL_HINT = (
+    f"The '{REQUIRED_ODBC_DRIVER}' ODBC driver is not installed.\n"
+    "It is a system package, so 'uv sync' cannot provide it.\n\n"
+    "Windows: winget install --id Microsoft.msodbcsql18\n"
+    "macOS:   brew install msodbcsql18\n"
+    "Linux:   https://learn.microsoft.com/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server\n\n"
+    "Installing it requires administrator rights. Open a new terminal afterwards "
+    "so the driver registration is picked up."
+)
+
 
 class ReadOnlySqlError(ValueError):
     """Raised when a statement is not a single, read-only query."""
@@ -90,13 +103,36 @@ class DatabaseTarget:
         identity chain, so this string is safe to display.
         """
         return (
-            "Driver={ODBC Driver 18 for SQL Server};"
+            f"Driver={{{REQUIRED_ODBC_DRIVER}}};"
             f"Server=tcp:{self.server_fqdn},1433;"
             f"Database={self.database_name};"
             "Encrypt=yes;"
             "TrustServerCertificate=no;"
             f"Connection Timeout={connect_timeout};"
         )
+
+
+def installed_odbc_drivers() -> tuple[str, ...]:
+    """Return the ODBC drivers pyodbc can see, or an empty tuple if absent."""
+    try:
+        import pyodbc
+    except ImportError:
+        return ()
+    return tuple(pyodbc.drivers())
+
+
+def assert_odbc_driver_available() -> None:
+    """Fail with installation guidance when the required driver is missing.
+
+    pyodbc otherwise reports IM002 "Data source name not found", which does not
+    say which driver is wanted or how to obtain it.
+    """
+    drivers = installed_odbc_drivers()
+    if REQUIRED_ODBC_DRIVER in drivers:
+        return
+
+    found = ", ".join(drivers) if drivers else "none"
+    raise DatabaseTargetError(f"{_ODBC_INSTALL_HINT}\n\nDrivers currently visible: {found}")
 
 
 def strip_sql_comments(sql: str) -> str:
