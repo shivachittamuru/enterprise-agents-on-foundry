@@ -15,11 +15,13 @@ is the platform and the architecture around the agent, not agent complexity.
 
 ## Current release
 
-`v0.1: Brownfield Baseline, Repository Bootstrap, and Azure Foundation`
+`v0.2: Modern Python Foundation and Clean Package Layout`
 
-v0.1 analyses the legacy backend, establishes the modern Python baseline, and
-provisions the Azure foundation. It builds no agent and migrates no LangGraph
-code. See [docs/releases/v0.1.md](docs/releases/v0.1.md).
+v0.2 replaces the single `setup` package with five boundaries named for
+responsibility, adds a typed error hierarchy, introduces two command line entry
+points, and splits the test suite into a fast offline suite and an Azure suite.
+It builds no agent and migrates no LangGraph code. See
+[docs/releases/v0.2.md](docs/releases/v0.2.md).
 
 ## Prerequisites
 
@@ -33,13 +35,27 @@ assignments is required for provisioning. Nothing in the test suite needs Azure.
 
 Running the database queries additionally needs the
 [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server),
-which is a system package rather than a Python wheel.
+which is a system package rather than a Python wheel. On Windows:
+`winget install --id Microsoft.msodbcsql18`.
 
 Verify everything with:
 
 ```console
-uv run python scripts/preprovision_check.py
+uv run eaof-verify
 ```
+
+## Commands
+
+Two commands are installed by `uv sync`.
+
+| Command | Purpose |
+| --- | --- |
+| `uv run eaof-verify` | Report whether this workstation and Azure environment are ready |
+| `uv run eaof-db-info` | Inspect the configured database, read-only |
+
+Both return `0` when the check passed, `1` when it ran and something failed, and
+`2` when it could not run at all. The last distinction matters: a missing ODBC
+driver and a broken database are different problems.
 
 ## Getting started
 
@@ -48,9 +64,12 @@ uv sync
 copy .env.example .env
 ```
 
-Then open
-[notebooks/00_brownfield_baseline_and_azure_bootstrap.ipynb](notebooks/00_brownfield_baseline_and_azure_bootstrap.ipynb),
-which walks through the whole release.
+Then open the notebooks in order.
+[00_brownfield_baseline_and_azure_bootstrap.ipynb](notebooks/00_brownfield_baseline_and_azure_bootstrap.ipynb)
+covers the baseline analysis and the Azure foundation.
+[01_modern_python_foundation.ipynb](notebooks/01_modern_python_foundation.ipynb)
+covers the package layout, typed configuration and errors, the database client,
+the commands, and the test split.
 
 ## Provisioning Azure
 
@@ -62,6 +81,7 @@ azd auth login
 azd env new dev
 uv run python scripts/preprovision_check.py
 azd provision
+uv run eaof-verify
 uv run --extra database python scripts/bootstrap_database.py
 ```
 
@@ -84,20 +104,26 @@ and cost summary are in
 | `evals/datasets/` | Evaluation cases |
 | `infra/` | Subscription-scoped Bicep and azd parameters |
 | `notebooks/` | Progressive lessons |
-| `scripts/` | Validation, provisioning hooks, and database bootstrap |
-| `src/enterprise_agents_on_foundry/` | Importable helpers used by notebooks and scripts |
-| `tests/` | Configuration, safety, structure, and infrastructure contracts |
+| `scripts/` | Thin adapters: provisioning hooks and database bootstrap |
+| `src/enterprise_agents_on_foundry/` | The package: `config`, `infrastructure`, `database`, `observability`, `cli` |
+| `tests/unit/` | Offline tests, no Azure access required |
+| `tests/integration/` | Azure tests, marked `azure` |
 
 ## Quality gate
 
 ```console
 uv sync
-uv run pytest
+uv run pytest -m "not azure"
+uv run pytest -m azure
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy src scripts
 az bicep build --file infra/main.bicep
 ```
+
+The offline suite needs nothing but Python and is the one that runs on every
+change. The Azure suite needs a provisioned environment and skips with a stated
+reason when one is absent.
 
 ## Safety defaults
 

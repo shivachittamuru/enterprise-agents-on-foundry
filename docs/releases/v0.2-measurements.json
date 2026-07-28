@@ -1,0 +1,70 @@
+{
+  "release": "v0.2",
+  "capturedAt": "2026-07-28T15:31:00+00:00",
+  "measurements": [
+    {
+      "name": "unit_test_duration",
+      "value": 10319,
+      "unit": "ms",
+      "category": "quality",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "integration_test_duration",
+      "value": 5421,
+      "unit": "ms",
+      "category": "quality",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "direct_environment_reads",
+      "value": 0,
+      "unit": "count",
+      "category": "refactor",
+      "note": null,
+      "baseline": 4
+    },
+    {
+      "name": "duplicate_helper_implementations",
+      "value": 0,
+      "unit": "count",
+      "category": "refactor",
+      "note": null,
+      "baseline": 6
+    },
+    {
+      "name": "package_cli_commands",
+      "value": 2,
+      "unit": "count",
+      "category": "refactor",
+      "note": null,
+      "baseline": 0
+    },
+    {
+      "name": "package_boundaries",
+      "value": 5,
+      "unit": "count",
+      "category": "refactor",
+      "note": null,
+      "baseline": 1
+    },
+    {
+      "name": "ruff_findings",
+      "value": 0,
+      "unit": "count",
+      "category": "refactor",
+      "note": null,
+      "baseline": 0
+    },
+    {
+      "name": "mypy_findings",
+      "value": 0,
+      "unit": "count",
+      "category": "refactor",
+      "note": null,
+      "baseline": 0
+    }
+  ]
+}

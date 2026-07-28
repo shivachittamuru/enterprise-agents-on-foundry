@@ -4,17 +4,20 @@ from __future__ import annotations
 
 import pytest
 
-from enterprise_agents_on_foundry.setup import database
-from enterprise_agents_on_foundry.setup.config import Settings
-from enterprise_agents_on_foundry.setup.database import (
-    REQUIRED_ODBC_DRIVER,
-    DatabaseTargetError,
-    ReadOnlySqlError,
+from enterprise_agents_on_foundry.config.settings import Settings
+from enterprise_agents_on_foundry.database import connection
+from enterprise_agents_on_foundry.database.models import REQUIRED_ODBC_DRIVER
+from enterprise_agents_on_foundry.database.validation import (
     assert_read_only_sql,
     is_read_only_sql,
     resolve_database_target,
     split_statements,
     strip_sql_comments,
+)
+from enterprise_agents_on_foundry.errors import (
+    DatabaseConnectionError,
+    QueryValidationError,
+    UnsafeDatabaseTargetError,
 )
 
 ALLOWED_QUERIES = [
@@ -64,18 +67,18 @@ def test_read_only_queries_are_accepted(sql: str) -> None:
 @pytest.mark.parametrize(("sql", "label"), REJECTED_QUERIES, ids=[label for _, label in REJECTED_QUERIES])
 def test_unsafe_queries_are_rejected(sql: str, label: str) -> None:
     assert is_read_only_sql(sql) is False
-    with pytest.raises(ReadOnlySqlError):
+    with pytest.raises(QueryValidationError):
         assert_read_only_sql(sql)
 
 
 def test_forbidden_keyword_hidden_in_a_comment_is_still_rejected() -> None:
     """Comments are stripped first, so the statement behind them is what counts."""
-    with pytest.raises(ReadOnlySqlError):
+    with pytest.raises(QueryValidationError):
         assert_read_only_sql("/* SELECT */ DROP TABLE t")
 
 
 def test_comment_only_input_is_rejected() -> None:
-    with pytest.raises(ReadOnlySqlError):
+    with pytest.raises(QueryValidationError):
         assert_read_only_sql("-- just a comment")
 
 
@@ -138,10 +141,10 @@ def test_connection_string_requests_the_supported_driver() -> None:
 
 def test_missing_driver_explains_how_to_install_it(monkeypatch: pytest.MonkeyPatch) -> None:
     """A bare pyodbc IM002 does not say which driver is wanted."""
-    monkeypatch.setattr(database, "installed_odbc_drivers", lambda: ("SQL Server",))
+    monkeypatch.setattr(connection, "installed_odbc_drivers", lambda: ("SQL Server",))
 
-    with pytest.raises(DatabaseTargetError) as error:
-        database.assert_odbc_driver_available()
+    with pytest.raises(DatabaseConnectionError) as error:
+        connection.assert_odbc_driver_available()
 
     message = str(error.value)
     assert REQUIRED_ODBC_DRIVER in message
@@ -150,9 +153,9 @@ def test_missing_driver_explains_how_to_install_it(monkeypatch: pytest.MonkeyPat
 
 
 def test_present_driver_passes(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(database, "installed_odbc_drivers", lambda: (REQUIRED_ODBC_DRIVER,))
+    monkeypatch.setattr(connection, "installed_odbc_drivers", lambda: (REQUIRED_ODBC_DRIVER,))
 
-    database.assert_odbc_driver_available()
+    connection.assert_odbc_driver_available()
 
 
 def test_display_is_safe_to_log() -> None:
@@ -162,21 +165,21 @@ def test_display_is_safe_to_log() -> None:
 
 
 def test_missing_fqdn_is_rejected() -> None:
-    with pytest.raises(DatabaseTargetError, match="AZURE_SQL_SERVER_FQDN"):
+    with pytest.raises(UnsafeDatabaseTargetError, match="AZURE_SQL_SERVER_FQDN"):
         resolve_database_target(_settings(azure_sql_server_fqdn=None))
 
 
 def test_non_azure_host_is_rejected() -> None:
     """A hostname outside Azure SQL suggests a misdirected connection."""
-    with pytest.raises(DatabaseTargetError, match=r"database\.windows\.net"):
+    with pytest.raises(UnsafeDatabaseTargetError, match=r"database\.windows\.net"):
         resolve_database_target(_settings(azure_sql_server_fqdn="evil.example.com", azure_sql_server_name=None))
 
 
 def test_conflicting_server_name_and_fqdn_are_rejected() -> None:
-    with pytest.raises(DatabaseTargetError, match="Refusing to guess"):
+    with pytest.raises(UnsafeDatabaseTargetError, match="Refusing to guess"):
         resolve_database_target(_settings(azure_sql_server_name="some-other-server"))
 
 
 def test_malformed_database_name_is_rejected() -> None:
-    with pytest.raises(DatabaseTargetError):
+    with pytest.raises(UnsafeDatabaseTargetError):
         resolve_database_target(_settings(azure_sql_database_name="bad;name"))

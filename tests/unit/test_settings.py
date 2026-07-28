@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from enterprise_agents_on_foundry.setup.config import (
+from enterprise_agents_on_foundry.config.settings import (
     DEFAULT_DATASET_VARIANT,
     DatasetVariant,
     Settings,
@@ -16,7 +16,8 @@ from enterprise_agents_on_foundry.setup.config import (
     load_settings,
     repository_root,
 )
-from enterprise_agents_on_foundry.setup.database import require_bootstrap_allowed
+from enterprise_agents_on_foundry.database.validation import require_bootstrap_allowed
+from enterprise_agents_on_foundry.errors import ConfigurationError, UnsafeDatabaseTargetError
 
 
 def test_default_dataset_is_adventureworks_lt() -> None:
@@ -61,7 +62,7 @@ def test_settings_are_frozen(clean_env: None, empty_env_file: Path) -> None:
 def test_bootstrap_is_disabled_by_default(clean_env: None, empty_env_file: Path) -> None:
     settings = load_settings(env_file=empty_env_file)
     assert settings.allow_database_bootstrap is False
-    with pytest.raises(PermissionError, match="ALLOW_DATABASE_BOOTSTRAP"):
+    with pytest.raises(UnsafeDatabaseTargetError, match="ALLOW_DATABASE_BOOTSTRAP"):
         require_bootstrap_allowed(settings)
 
 
@@ -137,7 +138,7 @@ def test_feature_flags_default_to_disabled(clean_env: None, empty_env_file: Path
     flags = {name: getattr(settings, name) for name in Settings.model_fields if name.startswith("enable_")}
 
     assert flags, "expected at least one feature flag"
-    assert not any(flags.values()), f"v0.1 must ship with every optional capability off: {flags}"
+    assert not any(flags.values()), f"every optional capability must still ship off: {flags}"
 
 
 def test_repository_root_is_anchored_on_the_package_not_the_cwd(
@@ -152,3 +153,35 @@ def test_query_limits_are_bounded() -> None:
         Settings(database_max_result_rows=0)
     with pytest.raises(ValidationError):
         Settings(database_connect_timeout_seconds=0)
+
+
+def test_model_deployment_shape_is_configuration_not_code(clean_env: None, empty_env_file: Path) -> None:
+    """v0.1 read these four values with os.environ.get inside a script."""
+    settings = load_settings(env_file=empty_env_file)
+
+    assert settings.azure_model_sku_name == "GlobalStandard"
+    assert settings.azure_model_capacity == 10
+
+
+def test_model_capacity_is_bounded() -> None:
+    with pytest.raises(ValidationError):
+        Settings(azure_model_capacity=0)
+
+
+def test_load_settings_reports_the_variable_name_not_the_value(clean_env: None, tmp_path: Path) -> None:
+    """A configuration error has to be actionable without leaking the value."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("DATABASE_MAX_RESULT_ROWS=0\n", encoding="utf-8")
+
+    with pytest.raises(ConfigurationError) as caught:
+        load_settings(env_file=env_file)
+
+    message = str(caught.value)
+    assert "DATABASE_MAX_RESULT_ROWS" in message
+    assert "=0" not in message
+
+
+def test_configuration_error_is_raised_only_by_the_loader(clean_env: None) -> None:
+    """Direct construction stays a pydantic concern; the loader is the boundary."""
+    with pytest.raises(ValidationError):
+        Settings(database_max_result_rows=0)

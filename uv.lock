@@ -494,7 +494,7 @@ wheels = [
 
 [[package]]
 name = "enterprise-agents-on-foundry"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
@@ -514,6 +514,7 @@ dev = [
     { name = "jupyter" },
     { name = "mypy" },
     { name = "nbformat" },
+    { name = "pyodbc" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -534,6 +535,7 @@ dev = [
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "mypy", specifier = ">=2.3.0" },
     { name = "nbformat", specifier = ">=5.10.4" },
+    { name = "pyodbc", specifier = ">=5.2.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.16.0" },
 ]

@@ -1,6 +1,6 @@
 [project]
 name = "enterprise-agents-on-foundry"
-version = "0.1.0"
+version = "0.2.0"
 description = "A progressive, notebook-first learning laboratory for modern enterprise agents on Microsoft Foundry."
 readme = "README.md"
 authors = [
@@ -22,6 +22,12 @@ database = [
     "pyodbc>=5.2.0",
 ]
 
+[project.scripts]
+# Thin adapters over package functions. Both return meaningful exit codes:
+# 0 ready, 1 a check failed, 2 the check could not run.
+eaof-verify = "enterprise_agents_on_foundry.cli.verify:main"
+eaof-db-info = "enterprise_agents_on_foundry.cli.database_info:main"
+
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
@@ -32,6 +38,9 @@ dev = [
     "jupyter>=1.1.1",
     "mypy>=2.3.0",
     "nbformat>=5.10.4",
+    # Also declared as the 'database' extra for runtime consumers. It is repeated
+    # here so that 'uv sync' alone is enough to run 'pytest -m azure'.
+    "pyodbc>=5.2.0",
     "pytest>=9.1.1",
     "ruff>=0.16.0",
 ]
@@ -57,7 +66,7 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 # assert is the expected idiom in the test suite.
-"tests/*.py" = ["S101"]
+"tests/**/*.py" = ["S101"]
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -79,3 +88,6 @@ minversion = "9.0"
 testpaths = ["tests"]
 addopts = "-ra --strict-markers --strict-config"
 filterwarnings = ["error"]
+markers = [
+    "azure: requires a provisioned Azure environment, a signed-in identity, and the ODBC driver",
+]

@@ -17,8 +17,13 @@ EXPECTED_DIRECTORIES = [
     "infra/modules",
     "notebooks",
     "scripts",
-    "src/enterprise_agents_on_foundry/setup",
-    "tests",
+    "src/enterprise_agents_on_foundry/cli",
+    "src/enterprise_agents_on_foundry/config",
+    "src/enterprise_agents_on_foundry/database",
+    "src/enterprise_agents_on_foundry/infrastructure",
+    "src/enterprise_agents_on_foundry/observability",
+    "tests/integration",
+    "tests/unit",
 ]
 
 EXPECTED_FILES = [
@@ -85,7 +90,7 @@ def test_gitignore_excludes_local_env_and_sample_data(repo_root: Path) -> None:
 
 def test_sql_query_files_are_read_only(repo_root: Path) -> None:
     """Everything in database/queries must pass the same validator the agent uses."""
-    from enterprise_agents_on_foundry.setup.database import assert_read_only_sql
+    from enterprise_agents_on_foundry.database.validation import assert_read_only_sql
 
     query_files = sorted((repo_root / "database" / "queries").glob("*.sql"))
     assert query_files, "expected at least one query file"
@@ -102,3 +107,28 @@ def test_grant_script_never_grants_write_access(repo_root: Path) -> None:
     assert "db_datawriter" not in content
     assert "db_owner" not in content
     assert "deny insert, update, delete, alter, execute" in content
+
+
+def test_scripts_stay_thin_adapters(repo_root: Path) -> None:
+    """Scripts orchestrate and print. Logic belongs in the package.
+
+    The threshold is deliberately generous: it catches a script growing a second
+    implementation, not a script gaining a few lines of output.
+    """
+    for path in sorted((repo_root / "scripts").glob("*.py")):
+        lines = [
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        assert len(lines) < 200, f"{path.name} has {len(lines)} lines; move logic into the package"
+
+
+def test_scripts_read_no_environment_variables_directly(repo_root: Path) -> None:
+    """Configuration has exactly one entry point: load_settings."""
+    offenders = [
+        path.name
+        for path in sorted((repo_root / "scripts").glob("*.py"))
+        if "os.environ" in path.read_text(encoding="utf-8") or "os.getenv" in path.read_text(encoding="utf-8")
+    ]
+    assert offenders == [], f"scripts must read configuration through Settings: {offenders}"
