@@ -14,6 +14,15 @@ __pycache__/
 .env.*
 !.env.example
 
+# Local database artifacts.
+# The legacy backend committed three divergent SQLite state files and two copies
+# of the sample database. Nothing of that shape belongs in version control.
+*.db
+*.sqlite
+*.sqlite3
+*.bacpac
+checkpointer_db/
+
 # Jupyter
 .ipynb_checkpoints/
 

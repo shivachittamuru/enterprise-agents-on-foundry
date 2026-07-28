@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME=dev}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION=westus3}"
+    },
+    "projectName": {
+      "value": "${PROJECT_NAME=enterprise-agents-on-foundry}"
+    },
+    "ownerTag": {
+      "value": "${OWNER_TAG=shiva}"
+    },
+    "resourceGroupName": {
+      "value": "${AZURE_RESOURCE_GROUP=rg-enterprise-agents-on-foundry-dev}"
+    },
+    "resourceNameSuffix": {
+      "value": "${AZURE_RESOURCE_NAME_SUFFIX=}"
+    },
+    "deployerPrincipalId": {
+      "value": "${AZURE_PRINCIPAL_ID}"
+    },
+    "deployerPrincipalName": {
+      "value": "${AZURE_PRINCIPAL_NAME}"
+    },
+    "deployerPrincipalType": {
+      "value": "${AZURE_PRINCIPAL_TYPE=User}"
+    },
+    "modelDeploymentName": {
+      "value": "${AZURE_MODEL_DEPLOYMENT_NAME=chat-model}"
+    },
+    "modelName": {
+      "value": "${AZURE_MODEL_NAME=gpt-5.4-mini}"
+    },
+    "modelVersion": {
+      "value": "${AZURE_MODEL_VERSION=2026-03-17}"
+    },
+    "modelSkuName": {
+      "value": "${AZURE_MODEL_SKU_NAME=GlobalStandard}"
+    },
+    "modelCapacity": {
+      "value": "${AZURE_MODEL_CAPACITY=10}"
+    },
+    "sqlDatabaseName": {
+      "value": "${AZURE_SQL_DATABASE_NAME=AdventureWorksLT}"
+    },
+    "sqlUseBuiltInSample": {
+      "value": "${AZURE_SQL_USE_BUILT_IN_SAMPLE=true}"
+    },
+    "sqlAutoPauseDelayMinutes": {
+      "value": "${AZURE_SQL_AUTO_PAUSE_DELAY_MINUTES=60}"
+    },
+    "sqlMaxVCores": {
+      "value": "${AZURE_SQL_MAX_VCORES=1}"
+    },
+    "allowedClientIpAddress": {
+      "value": "${AZURE_SQL_ALLOWED_CLIENT_IP=}"
+    },
+    "enableContainerRegistry": {
+      "value": "${ENABLE_CONTAINER_REGISTRY=false}"
+    },
+    "enableAzureAiSearch": {
+      "value": "${ENABLE_AZURE_AI_SEARCH=false}"
+    },
+    "enableFoundryIq": {
+      "value": "${ENABLE_FOUNDRY_IQ=false}"
+    },
+    "enableLongTermMemory": {
+      "value": "${ENABLE_LONG_TERM_MEMORY=false}"
+    },
+    "enablePrivateNetworking": {
+      "value": "${ENABLE_PRIVATE_NETWORKING=false}"
+    },
+    "enableHostedAgent": {
+      "value": "${ENABLE_HOSTED_AGENT=false}"
+    },
+    "enableExternalHosting": {
+      "value": "${ENABLE_EXTERNAL_HOSTING=false}"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 [project]
 name = "enterprise-agents-on-foundry"
 version = "0.1.0"
-description = "Add your description here"
+description = "A progressive, notebook-first learning laboratory for modern enterprise agents on Microsoft Foundry."
 readme = "README.md"
 authors = [
     { name = "Shiva Chittamuru", email = "shiva.vy147@gmail.com" }
@@ -14,8 +14,13 @@ dependencies = [
     "python-dotenv>=1.2.2",
 ]
 
-[project.scripts]
-enterprise-agents-on-foundry = "enterprise_agents_on_foundry:main"
+[project.optional-dependencies]
+# pyodbc also needs the Microsoft ODBC Driver 18 for SQL Server, which is a
+# system package rather than a wheel. It stays optional so that cloning the
+# repository and running the tests never requires a native driver install.
+database = [
+    "pyodbc>=5.2.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
@@ -30,3 +35,47 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.0",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "scripts", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "UP",   # pyupgrade
+    "S",    # bandit security rules
+    "SIM",  # simplification
+    "RUF",  # ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+# assert is the expected idiom in the test suite.
+"tests/*.py" = ["S101"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+# pyodbc is an optional extra without bundled stubs.
+module = ["pyodbc.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+filterwarnings = ["error"]
