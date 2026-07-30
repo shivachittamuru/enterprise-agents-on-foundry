@@ -1,17 +1,83 @@
-# Enterprise Agents on Microsoft Foundry
+---
+title: Enterprise Agents on Microsoft Foundry
+description: A notebook-first learning project for building a typed, testable, and read-only LangGraph Text-to-SQL agent on Microsoft Foundry and Azure SQL.
+author: Shiva Chittamuru
+ms.date: 2026-07-30
+ms.topic: tutorial
+keywords:
+  - Microsoft Foundry
+  - LangGraph
+  - Text-to-SQL
+  - Azure SQL
+  - enterprise agents
+estimated_reading_time: 12
+---
 
-A progressive, notebook-first learning laboratory for modern enterprise agents on
-Microsoft Foundry.
+## Start here
 
-The repository modernizes a brownfield LangGraph Text-to-SQL project one concept
-at a time. Each release adds a single idea and leaves a readable checkpoint
-behind, covering modern LangGraph architecture, models and tools, Foundry hosted
-agents, Foundry IQ, memory, observability and evaluation, performance and
-reliability, token economics, security and governance, operational control,
-distribution, and external-hosting comparisons.
+Enterprise Agents on Microsoft Foundry is a progressive, notebook-first learning
+project. You begin with a brownfield agent, establish a modern Python and Azure
+foundation, and then rebuild the agent as an explicit LangGraph workflow.
 
-The Text-to-SQL agent stays deliberately understandable throughout. The subject
-is the platform and the architecture around the agent, not agent complexity.
+The working example is intentionally small: a Text-to-SQL agent answers business
+questions from the AdventureWorksLT sample database. The SQL use case makes
+enterprise concerns concrete. You can see where model output crosses a trust
+boundary, where deterministic checks belong, how identity reaches Azure, and how
+an agent should fail when it cannot safely answer.
+
+This is not a finished product template or a collection of isolated demos. Each
+release is a readable checkpoint in one evolving implementation. Production code
+lives under `src/`; notebooks import that code and explain it rather than creating
+a second implementation.
+
+> [!TIP]
+> You do not need an Azure subscription to begin. Complete the local setup, run
+> the offline tests, and study the first two notebooks before provisioning
+> anything.
+
+## What you will learn
+
+By working through the repository, you will learn how to:
+
+* Separate configuration, database access, model access, graph control flow, and
+  presentation into testable boundaries.
+* Model LangGraph input, working state, routes, and output with explicit Python
+  types.
+* Treat model-generated SQL as untrusted input and validate it before execution.
+* Bound retries, row counts, query time, and graph recursion rather than relying
+  on prompt instructions.
+* Authenticate to Microsoft Foundry and Azure SQL with Microsoft Entra instead of
+  storing API keys or database passwords.
+* Use fake model and database implementations for fast offline tests, then keep
+  live Azure checks in a separately marked integration suite.
+* Capture architectural decisions, measurements, limitations, and deferred scope
+  as part of a release.
+
+## Agent mental model
+
+The model is a writer, not the decision-maker. It drafts SQL, repairs SQL once,
+and summarizes rows already returned by the database. LangGraph controls the
+route, deterministic Python validates every statement, and the database identity
+provides the final read-only boundary.
+
+```mermaid
+flowchart LR
+    Q[Question] --> S[Load schema]
+    S --> G[Generate SQL]
+    G --> V{Validate SQL}
+    V -->|valid| E[Execute query]
+    V -->|invalid| R[Repair once]
+    R --> V
+    E -->|rows| A[Compose answer]
+    E -->|query error| R
+    V -->|repair exhausted| F[Structured failure]
+    E -->|repair exhausted| F
+```
+
+The happy path uses two model calls: one to draft SQL and one to explain the
+result. A repair path uses one additional call. Prompt instructions improve model
+behavior, but they are not security controls. The validator, database client,
+and database permissions enforce the rules.
 
 ## Current release
 
@@ -23,100 +89,235 @@ bounded repair attempt, and structured success or failure output. The model has
 no tools and makes no routing decision. See
 [docs/releases/v0.3.md](docs/releases/v0.3.md).
 
+## Choose your learning path
+
+### Local path
+
+Start here. This path requires Python and `uv`, but no Azure resources.
+
+1. Install the local prerequisites.
+2. Synchronize the Python environment.
+3. Run the offline test suite.
+4. Work through notebooks 00 and 01.
+5. Study the scripted LangGraph scenarios in notebook 02.
+
+Database and live-model cells report why they were skipped when Azure is not
+configured. A skip is expected on the local path and is different from a failed
+test.
+
+### Azure path
+
+Continue here when you are ready to run the database and model examples.
+
+1. Complete the local path.
+2. Install the Azure tools and ODBC driver.
+3. Sign in and select an Azure subscription.
+4. Review the planned topology and billable resources.
+5. Provision with `azd`.
+6. Bootstrap read-only database access.
+7. Run the Azure integration tests and live notebook cells.
+8. Delete the environment when you finish.
+
 ## Prerequisites
 
-Python 3.12 or later, [uv](https://docs.astral.sh/uv/), Git, the
-[Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli), the
-[Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd),
-and the Bicep CLI extension.
+### Required for local learning
 
-An Azure subscription with permission to create resource groups and role
-assignments is required for provisioning. Nothing in the test suite needs Azure.
+* [Git](https://git-scm.com/downloads)
+* [Python 3.12 or later](https://www.python.org/downloads/)
+* [uv](https://docs.astral.sh/uv/getting-started/installation/)
+* [Visual Studio Code](https://code.visualstudio.com/) with the Python and
+  Jupyter extensions, or another Jupyter-compatible editor
 
-Running the database queries additionally needs the
-[Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server),
-which is a system package rather than a Python wheel. On Windows:
-`winget install --id Microsoft.msodbcsql18`.
-
-Verify everything with:
+Confirm the tools are available:
 
 ```console
-uv run eaof-verify
+python --version
+uv --version
+git --version
 ```
 
-## Commands
+### Additional requirements for Azure
 
-Two commands are installed by `uv sync`.
+* An Azure subscription with permission to create resource groups and role
+  assignments
+* [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
+* [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+* The Bicep CLI available through `az bicep`
+* [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server)
 
-| Command | Purpose |
-| --- | --- |
-| `uv run eaof-verify` | Report whether this workstation and Azure environment are ready |
-| `uv run eaof-db-info` | Inspect the configured database, read-only |
+Install the ODBC driver on Windows from an elevated terminal:
 
-Both return `0` when the check passed, `1` when it ran and something failed, and
-`2` when it could not run at all. The last distinction matters: a missing ODBC
-driver and a broken database are different problems.
+```console
+winget install --id Microsoft.msodbcsql18
+```
 
-## Getting started
+Open a new terminal after installation so the registered driver is visible.
+The ODBC driver is a system component; `uv sync` cannot install it.
+
+Verify the Azure tools:
+
+```console
+az version
+azd version
+az bicep version
+```
+
+## Set up the project locally
+
+From the repository root, synchronize the locked Python environment:
 
 ```console
 uv sync
+```
+
+Create a local configuration file. Use the command for your shell.
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Windows Command Prompt:
+
+```bat
 copy .env.example .env
 ```
 
-Then open the notebooks in order.
-[00_brownfield_baseline_and_azure_bootstrap.ipynb](notebooks/00_brownfield_baseline_and_azure_bootstrap.ipynb)
-covers the baseline analysis and the Azure foundation.
-[01_modern_python_foundation.ipynb](notebooks/01_modern_python_foundation.ipynb)
-covers the package layout, typed configuration and errors, the database client,
-the commands, and the test split.
-[01.1_explore_adventureworks.ipynb](notebooks/01.1_explore_adventureworks.ipynb)
-is an optional tour of the sample database: schemas, tables, keys, a handful of
-beginner queries, and how that schema becomes agent context.
-[02_modern_langgraph_text_to_sql.ipynb](notebooks/02_modern_langgraph_text_to_sql.ipynb)
-covers the agent: graph state, topology, repair, unsafe-write rejection, and
-structured output. It runs offline, and its live cell skips with a stated reason
-when Azure is unavailable.
+macOS or Linux:
 
-## Provisioning Azure
+```bash
+cp .env.example .env
+```
 
-Nothing is created until the pre-provision check passes. It prints the topology,
-the region, and every billable resource before anything happens.
+The empty Azure values are fine for the local path. Do not add passwords,
+access tokens, API keys, or connection strings to `.env`. After Azure
+provisioning, `scripts/write_env_from_azd.py` writes non-secret deployment
+outputs into this file.
+
+Run the offline quality checks:
 
 ```console
+uv run pytest -m "not azure"
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy src scripts
+```
+
+The offline pytest command is the definitive local code check and does not
+contact Azure. Run `uv run eaof-verify` when you want a report covering both
+local prerequisites and Azure readiness.
+
+## Work through the notebooks
+
+Open the notebooks in this order. Run one cell at a time and read the Markdown
+before moving on; the explanation and production code are designed to be read
+together.
+
+| Order | Notebook | Learning outcome | Azure needed |
+| --- | --- | --- | --- |
+| 1 | [00: Brownfield baseline and Azure bootstrap](notebooks/00_brownfield_baseline_and_azure_bootstrap.ipynb) | Compare the legacy system with the target architecture and understand the Azure foundation | No for analysis; yes for provisioning |
+| 2 | [01: Modern Python foundation](notebooks/01_modern_python_foundation.ipynb) | Explore typed settings, errors, package boundaries, database access, commands, and test separation | No |
+| 3 | [01.1: Explore AdventureWorksLT](notebooks/01.1_explore_adventureworks.ipynb) | Inspect schemas, tables, keys, safe queries, and the metadata supplied to the agent | Yes for live queries |
+| 4 | [02: Modern LangGraph Text-to-SQL](notebooks/02_modern_langgraph_text_to_sql.ipynb) | Follow typed graph state, routing, validation, repair, execution, structured success, and structured failure | No for scripted scenarios; yes for the live run |
+
+Notebooks 01.1 and 02 handle an unavailable database by printing a concise skip
+reason. Install ODBC Driver 18, sign in with `az login`, and provision the Azure
+environment before expecting live database output.
+
+## Provision the Azure learning environment
+
+> [!IMPORTANT]
+> Provisioning creates billable Azure resources. The pre-provision hook prints
+> the region, topology, model deployment, and billable resources before Azure
+> receives a deployment request. Read that output before continuing.
+
+Sign in to both command-line tools. The application uses the Azure CLI identity
+locally for Microsoft Entra data-plane access, while `azd` manages the
+environment and deployment.
+
+```console
+az login
 azd auth login
+az account show
+```
+
+Create the `azd` environment, inspect the plan, and provision:
+
+```console
 azd env new dev
 uv run python scripts/preprovision_check.py
 azd provision
-uv run eaof-verify
-uv run --extra database python scripts/bootstrap_database.py
 ```
 
-Tear down with `azd down --purge`.
+The `azure.yaml` hooks run the pre-provision check again and then copy Bicep
+outputs into `.env`. No application service is deployed in v0.3; the Python
+agent runs from your workstation against the provisioned Foundry and Azure SQL
+resources.
 
-The full topology, naming scheme, identity model, schema verification evidence,
-and cost summary are in
-[docs/architecture/v0.1-azure-foundation.md](docs/architecture/v0.1-azure-foundation.md).
+Grant the signed-in learner read-only access to AdventureWorksLT and verify the
+environment:
 
-## Repository layout
+```console
+uv run --extra database python scripts/bootstrap_database.py
+uv run eaof-verify
+uv run eaof-db-info
+uv run pytest -m azure
+```
 
-| Path | Contents |
+The bootstrap path is the only intentionally administrative database operation.
+It checks `ALLOW_DATABASE_BOOTSTRAP=true`, prints the resolved target, and grants
+read-only access. Agent-generated SQL never uses this path.
+
+When you finish the Azure exercises, remove the environment:
+
+```console
+azd down --purge
+```
+
+The full topology, naming scheme, identity model, schema evidence, and cost
+summary are in the
+[Azure foundation architecture](docs/architecture/v0.1-azure-foundation.md).
+
+## Understand the implementation boundaries
+
+The package is organized by responsibility rather than by notebook or release.
+
+```text
+Question
+  -> agents/state.py          validates input and defines working state
+  -> agents/graph.py          chooses the next node with deterministic routes
+  -> agents/nodes.py          performs one operation per graph node
+  -> agents/model.py          calls the configured Foundry model
+  -> database/validation.py   accepts or rejects generated SQL
+  -> database/connection.py   executes through one read-only boundary
+  -> AgentOutput              returns the same shape for success or failure
+```
+
+The main division of responsibility is:
+
+| Component | Allowed responsibility | Explicitly not responsible for |
+| --- | --- | --- |
+| Model | Draft SQL, repair it once, summarize returned rows | Routing, execution, credentials, or deciding whether SQL is safe |
+| LangGraph | Move typed state through a fixed workflow | Interpreting database permissions or hiding failures |
+| SQL validator | Enforce one read-only `SELECT` or `WITH` statement | Deciding whether the answer is useful |
+| Database client | Revalidate, execute, enforce timeout and row limits | Generating or repairing SQL |
+| Database identity | Provide the final `db_datareader` safety boundary | Trusting application validation |
+
+## Useful commands
+
+Two project commands are installed by `uv sync`.
+
+| Command | Purpose |
 | --- | --- |
-| `database/queries/` | Read-only inventory and smoke queries |
-| `database/seeds/adventureworks-lt/` | Seeding fallback and the read-only grant script |
-| `docs/adr/` | Architecture decision records |
-| `docs/architecture/` | Target architecture per release |
-| `docs/current-state/` | Analysis of the brownfield backend |
-| `docs/releases/` | Release notes and measurements |
-| `evals/datasets/` | Evaluation cases |
-| `infra/` | Subscription-scoped Bicep and azd parameters |
-| `notebooks/` | Progressive lessons |
-| `scripts/` | Thin adapters: provisioning hooks and database bootstrap |
-| `src/enterprise_agents_on_foundry/` | The package: `config`, `infrastructure`, `database`, `observability`, `cli`, `agents` |
-| `tests/unit/` | Offline tests, no Azure access required |
-| `tests/integration/` | Azure tests, marked `azure` |
+| `uv run eaof-verify` | Report whether the workstation, configuration, and Azure environment are ready |
+| `uv run eaof-db-info` | Inspect the configured database through the read-only client |
 
-## Quality gate
+Both return `0` when checks pass, `1` when checks run and find a problem, and `2`
+when checks cannot run. This distinction keeps a missing prerequisite separate
+from an unhealthy Azure resource.
+
+The full repository quality gate is:
 
 ```console
 uv sync
@@ -128,32 +329,122 @@ uv run mypy src scripts
 az bicep build --file infra/main.bicep
 ```
 
-The offline suite needs nothing but Python and is the one that runs on every
-change. The Azure suite needs a provisioned environment and skips with a stated
-reason when one is absent.
+The Azure tests skip with a stated reason when the environment, identity, or
+ODBC driver is unavailable. The offline suite runs on every change and is the
+normal development feedback loop.
 
-## Safety defaults
+## Repository map
 
-Authentication is Microsoft Entra only. No key, password, or connection string is
-accepted anywhere in the configuration model, and a test asserts that no setting
-name contains password, secret, or key.
+| Path | What to find there |
+| --- | --- |
+| `src/enterprise_agents_on_foundry/agents/` | Typed state, graph topology, nodes, prompts, model boundary, and schema context |
+| `src/enterprise_agents_on_foundry/database/` | Target validation, Microsoft Entra connection, read-only execution, and result models |
+| `src/enterprise_agents_on_foundry/config/` | The one typed settings boundary for `.env` and process configuration |
+| `src/enterprise_agents_on_foundry/observability/` | Timing and release measurement helpers |
+| `src/enterprise_agents_on_foundry/cli/` | Thin command-line adapters over production package functions |
+| `database/queries/` | Fixed, reviewed, read-only metadata and smoke queries |
+| `database/seeds/adventureworks-lt/` | Database bootstrap guidance and the read-only grant script |
+| `notebooks/` | Progressive lessons that import the production package |
+| `tests/unit/` | Fast tests with fake dependencies and no Azure access |
+| `tests/integration/` | Live tests marked `azure` |
+| `infra/` | Subscription-scoped Bicep modules and generated deployment artifacts |
+| `docs/architecture/` | Architecture at each shipped checkpoint |
+| `docs/adr/` | Individual architecture decisions and their tradeoffs |
+| `docs/current-state/` | Evidence gathered from the brownfield implementation |
+| `docs/releases/` | Scope, checks, measurements, and limitations for each release |
+| `evals/datasets/` | Evaluation cases reserved for the evaluation release |
 
-Database scripts refuse to modify anything unless `ALLOW_DATABASE_BOOTSTRAP=true`
-is set explicitly, and they print the resolved target before acting.
+## Safety model
 
-Generated SQL is constrained by two independent controls: a database principal
-holding `db_datareader` with writes explicitly denied, and a validator that
-accepts exactly one `SELECT` or `WITH` statement.
+The project uses multiple controls because no single control is sufficient.
 
-Every optional capability defaults to off.
+* Microsoft Entra authenticates model and database access; application settings
+  accept no key, password, token, or secret.
+* Azure SQL target names are validated before a connection is attempted.
+* Generated SQL must contain exactly one statement beginning with `SELECT` or
+  `WITH` and must not contain mutation, administrative, or stored-procedure
+  keywords.
+* The database client repeats validation immediately before execution.
+* The Azure SQL principal has read-only permissions and explicitly denied writes.
+* Query timeout, result row count, repair attempts, and graph recursion are
+  bounded in code.
+* Optional infrastructure capabilities remain disabled until the release that
+  teaches them.
+
+The SQL validator is intentionally conservative and is not a complete T-SQL
+parser. It may reject a harmless query containing a forbidden word in a string
+literal. A false rejection is preferable to silently allowing a mutation in
+this learning checkpoint.
+
+## Troubleshooting
+
+### ODBC Driver 18 is not installed
+
+`pyodbc` is a Python package; the Microsoft ODBC driver is a separate system
+installation. Install Driver 18 from an elevated terminal, open a new terminal,
+and run:
+
+```console
+uv run eaof-verify
+```
+
+### Azure credentials are unavailable
+
+Run both sign-in commands and confirm the intended subscription:
+
+```console
+az login
+azd auth login
+az account show
+```
+
+No credential should be copied into `.env`.
+
+### Live tests are skipped
+
+Read the skip reason printed by pytest. A skipped Azure test usually means one
+of the following prerequisites is absent: provisioned outputs in `.env`, a
+signed-in identity, database permissions, or ODBC Driver 18.
+
+### A generated query is rejected
+
+Rejection is expected when a statement is not a single read-only query. The
+graph sends the exact validation or database error to one repair attempt. After
+that attempt, it returns a structured failure instead of executing uncertain SQL
+or inventing an answer.
+
+## Release progression
+
+The curriculum adds one architectural concern at a time. Releases v0.1 through
+v0.3 establish the Azure foundation, Python boundaries, and explicit LangGraph
+agent. The planned sequence is:
+
+| Release | Learning checkpoint |
+| --- | --- |
+| v0.1 | Brownfield baseline and new repository |
+| v0.2 | `uv` packaging and clean source layout |
+| v0.3 | LangGraph 1.2 Text-to-SQL graph |
+| v0.4 | Deterministic safety and evaluation |
+| v0.5 | Foundry models and identity |
+| v0.6 | Foundry hosted-agent deployment |
+| v0.7 | OpenTelemetry and economics scorecard |
+| v0.8 | Durable PostgreSQL checkpointing |
+| v0.9 | Foundry Memory comparison |
+| v0.10 | Foundry IQ business glossary |
+| v0.11 | Governance and human approval |
+| v0.12 | Teams and Microsoft 365 distribution |
+| v0.13 | External-hosting comparison |
+
+See the [roadmap](docs/roadmap.md) for the planned sequence. Version numbers for
+future releases describe curriculum intent, not committed delivery dates. The
+roadmap also maps the project across models, tools, knowledge, runtime, memory,
+observability, governance, and distribution, and defines the performance,
+reliability, quality, economics, operational-control, and security evidence each
+release should preserve.
 
 ## Reference project
 
-The brownfield project this repository modernizes lives at
-`../langgraph-agents-on-azure`. It is treated as read-only and is never modified.
-Every claim about it in the documentation cites a specific path under
-`../langgraph-agents-on-azure/backend`.
-
-## Roadmap
-
-[docs/roadmap.md](docs/roadmap.md)
+The brownfield project lives at `../langgraph-agents-on-azure`. It is treated as
+read-only and is never modified. Modernization claims in `docs/current-state/`
+cite the relevant legacy source path so learners can compare evidence with the
+replacement instead of accepting an undocumented judgment.

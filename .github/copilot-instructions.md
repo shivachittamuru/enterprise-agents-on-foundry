@@ -9,6 +9,8 @@ This repository is a notebook-first learning project for building enterprise age
 * Preserve Microsoft Entra authentication and read-only Azure SQL access. Never log secrets, credentials, tokens, or connection strings.
 * Treat model output as untrusted. Validate SQL deterministically before execution and reject mutations.
 * Add focused unit tests for new behavior. Keep live Azure/model tests separately marked as integration tests.
+* Treat performance, reliability, quality, economics, operational control, and security as permanent project dimensions. For each release, measure the dimensions affected by the change; record unavailable evidence as not measured with a reason rather than estimating it.
+* Preserve comparable measurement definitions across releases. Include applicable latency, success, correctness, token, model-call, cost, budget, authorization, redaction, and audit evidence without logging sensitive data.
 * Do not modify unrelated files or infrastructure unless the task explicitly requires it.
 * Before implementing, inspect the existing code and reuse established project boundaries.
 * After each bounded task, report files changed, commands run, checks passed, and unresolved issues.
