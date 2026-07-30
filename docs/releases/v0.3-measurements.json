@@ -1,0 +1,110 @@
+{
+  "release": "v0.3",
+  "capturedAt": "2026-07-28T19:06:04+00:00",
+  "measurements": [
+    {
+      "name": "graph nodes",
+      "value": 7,
+      "unit": "count",
+      "category": "graph",
+      "note": "v0.1 had agent and tools",
+      "baseline": 2
+    },
+    {
+      "name": "graph edges",
+      "value": 13,
+      "unit": "count",
+      "category": "graph",
+      "note": "v0.1 wired start, agent, tools",
+      "baseline": 3
+    },
+    {
+      "name": "model calls, happy path",
+      "value": 2,
+      "unit": "count",
+      "category": "agent",
+      "note": "v0.1 called list_tables and get_schema before drafting",
+      "baseline": 4
+    },
+    {
+      "name": "model calls, repair path",
+      "value": 3,
+      "unit": "count",
+      "category": "agent",
+      "note": "v0.1 had no attempt counter, so this path was unbounded",
+      "baseline": null
+    },
+    {
+      "name": "unsafe statements blocked before execution",
+      "value": 2,
+      "unit": "count",
+      "category": "safety",
+      "note": "v0.1 executed what the model produced, after stripping code fences",
+      "baseline": 0
+    },
+    {
+      "name": "maximum statements the model may write",
+      "value": 2,
+      "unit": "count",
+      "category": "agent",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "happy path latency",
+      "value": null,
+      "unit": "ms",
+      "category": "agent",
+      "note": "end to end against Azure",
+      "baseline": null
+    },
+    {
+      "name": "happy path graph overhead",
+      "value": 60.1,
+      "unit": "ms",
+      "category": "agent",
+      "note": "scripted model, graph only",
+      "baseline": null
+    },
+    {
+      "name": "repair path graph overhead",
+      "value": 34.8,
+      "unit": "ms",
+      "category": "agent",
+      "note": "one correction included",
+      "baseline": null
+    },
+    {
+      "name": "offline tests",
+      "value": 238,
+      "unit": "count",
+      "category": "tests",
+      "note": "uv run pytest -m 'not azure'",
+      "baseline": 213
+    },
+    {
+      "name": "offline test duration",
+      "value": 24.0,
+      "unit": "s",
+      "category": "tests",
+      "note": null,
+      "baseline": 11.4
+    },
+    {
+      "name": "integration tests",
+      "value": 14,
+      "unit": "count",
+      "category": "tests",
+      "note": "uv run pytest -m azure",
+      "baseline": 10
+    },
+    {
+      "name": "integration test duration",
+      "value": 8.9,
+      "unit": "s",
+      "category": "tests",
+      "note": "13 skipped, no ODBC driver",
+      "baseline": null
+    }
+  ]
+}

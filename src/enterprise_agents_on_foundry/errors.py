@@ -7,6 +7,10 @@ caught ``ValueError`` silently swallowed unrelated bugs.
 
 One base class fixes both problems. The hierarchy stays flat and small: five
 concrete errors, one per boundary the project actually crosses.
+
+v0.3 adds a sixth for the model boundary. A model returning something that
+cannot be parsed is not a configuration problem, not an Azure problem, and not a
+database problem, so it needed a name of its own.
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ __all__ = [
     "ConfigurationError",
     "DatabaseConnectionError",
     "EaofError",
+    "ModelOutputError",
     "QueryValidationError",
     "UnsafeDatabaseTargetError",
 ]
@@ -43,3 +48,7 @@ class DatabaseConnectionError(EaofError):
 
 class QueryValidationError(EaofError):
     """A statement is not a single, read-only query."""
+
+
+class ModelOutputError(EaofError):
+    """The model returned output that does not satisfy the expected schema."""

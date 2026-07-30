@@ -77,6 +77,11 @@ class Settings(BaseSettings):
     azure_foundry_resource_name: str | None = Field(default=None)
     azure_foundry_project_name: str | None = Field(default=None)
     azure_foundry_project_endpoint: str | None = Field(default=None)
+    # The project endpoint addresses the Foundry project and is what agent and
+    # evaluation services use. The account endpoint addresses the underlying
+    # Azure OpenAI surface and is what a chat completions client needs. They are
+    # different hosts, so both are kept rather than deriving one from the other.
+    azure_foundry_account_endpoint: str | None = Field(default=None)
 
     azure_model_deployment_name: str | None = Field(default=None)
     azure_model_name: str | None = Field(default=None)
@@ -85,6 +90,7 @@ class Settings(BaseSettings):
     # configuration in practice while being invisible to the type checker.
     azure_model_sku_name: str = Field(default="GlobalStandard")
     azure_model_capacity: int = Field(default=10, ge=1, le=10_000)
+    azure_openai_api_version: str = Field(default="2025-04-01-preview", min_length=1)
 
     azure_sql_server_name: str | None = Field(default=None)
     azure_sql_server_fqdn: str | None = Field(default=None)
@@ -123,6 +129,7 @@ class Settings(BaseSettings):
         "azure_foundry_resource_name",
         "azure_foundry_project_name",
         "azure_foundry_project_endpoint",
+        "azure_foundry_account_endpoint",
         "azure_model_deployment_name",
         "azure_model_name",
         "azure_model_version",

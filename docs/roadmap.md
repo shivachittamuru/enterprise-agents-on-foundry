@@ -34,21 +34,21 @@ rather than redefining it. No agent code and no LangGraph.
 
 ## v0.3: Modern LangGraph architecture
 
-Rebuild the Text-to-SQL agent on LangGraph 1.2 using typed state, explicit
-routing, bounded retries, token-aware context management, and durable
-checkpointing. Evaluate current prebuilt patterns, but use them only where they
-improve clarity and control: for Text-to-SQL an explicit custom graph may remain
-clearer and safer than a prebuilt agent. Replace the fabricated tool call
-identifier and the six-message rolling window. Introduce durable checkpointing
-using a supported persistent store, with Azure SQL evaluated as one option. One
-implementation, no duplicate PostgreSQL variant.
+Shipped. Rebuild the Text-to-SQL agent on LangGraph 1.2 as an explicit
+`StateGraph` with typed state, pure routing functions, deterministic read-only
+validation before any execution, one bounded repair attempt, and structured
+success or failure output. Prebuilt agent patterns were evaluated and rejected:
+for Text-to-SQL an explicit graph is clearer and safer, because the model does
+not choose when to act. Replaces the fabricated tool call identifier and the
+six-message rolling window. See [releases/v0.3.md](releases/v0.3.md).
 
-## v0.4: Models and tools
+## v0.4: Persistence, models, and tools
 
-Model selection and configuration as an explicit concern. Structured output.
-Tool design, tool errors that are distinguishable from empty results, and the
-replacement of `run_no_throw` behaviour. Wire the read-only SQL validator from
-v0.1 into the agent's execution path.
+Durable checkpointing using a supported persistent store, with Azure SQL
+evaluated as one option. One implementation, no duplicate PostgreSQL variant.
+Model selection and configuration as an explicit concern. Tool design, tool
+errors that are distinguishable from empty results, and the replacement of
+`run_no_throw` behaviour.
 
 ## v0.5: Microsoft Foundry hosted agents
 
@@ -128,5 +128,7 @@ compilation result, and exact command being shown first.
 
 - [releases/v0.1.md](releases/v0.1.md)
 - [releases/v0.2.md](releases/v0.2.md)
+- [releases/v0.3.md](releases/v0.3.md)
 - [architecture/v0.1-azure-foundation.md](architecture/v0.1-azure-foundation.md)
 - [architecture/v0.2-python-foundation.md](architecture/v0.2-python-foundation.md)
+- [architecture/v0.3-modern-langgraph-agent.md](architecture/v0.3-modern-langgraph-agent.md)

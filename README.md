@@ -15,13 +15,13 @@ is the platform and the architecture around the agent, not agent complexity.
 
 ## Current release
 
-`v0.2: Modern Python Foundation and Clean Package Layout`
+`v0.3: Modern LangGraph Text-to-SQL Agent`
 
-v0.2 replaces the single `setup` package with five boundaries named for
-responsibility, adds a typed error hierarchy, introduces two command line entry
-points, and splits the test suite into a fast offline suite and an Azure suite.
-It builds no agent and migrates no LangGraph code. See
-[docs/releases/v0.2.md](docs/releases/v0.2.md).
+v0.3 migrates the Text-to-SQL agent onto LangGraph as an explicit `StateGraph`
+with typed state, deterministic read-only validation before any execution, one
+bounded repair attempt, and structured success or failure output. The model has
+no tools and makes no routing decision. See
+[docs/releases/v0.3.md](docs/releases/v0.3.md).
 
 ## Prerequisites
 
@@ -70,6 +70,13 @@ covers the baseline analysis and the Azure foundation.
 [01_modern_python_foundation.ipynb](notebooks/01_modern_python_foundation.ipynb)
 covers the package layout, typed configuration and errors, the database client,
 the commands, and the test split.
+[01.1_explore_adventureworks.ipynb](notebooks/01.1_explore_adventureworks.ipynb)
+is an optional tour of the sample database: schemas, tables, keys, a handful of
+beginner queries, and how that schema becomes agent context.
+[02_modern_langgraph_text_to_sql.ipynb](notebooks/02_modern_langgraph_text_to_sql.ipynb)
+covers the agent: graph state, topology, repair, unsafe-write rejection, and
+structured output. It runs offline, and its live cell skips with a stated reason
+when Azure is unavailable.
 
 ## Provisioning Azure
 
@@ -105,7 +112,7 @@ and cost summary are in
 | `infra/` | Subscription-scoped Bicep and azd parameters |
 | `notebooks/` | Progressive lessons |
 | `scripts/` | Thin adapters: provisioning hooks and database bootstrap |
-| `src/enterprise_agents_on_foundry/` | The package: `config`, `infrastructure`, `database`, `observability`, `cli` |
+| `src/enterprise_agents_on_foundry/` | The package: `config`, `infrastructure`, `database`, `observability`, `cli`, `agents` |
 | `tests/unit/` | Offline tests, no Azure access required |
 | `tests/integration/` | Azure tests, marked `azure` |
 
