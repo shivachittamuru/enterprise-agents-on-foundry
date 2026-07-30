@@ -18,7 +18,17 @@ from enterprise_agents_on_foundry.database.models import QueryResult
 SQL_SYSTEM_PROMPT: Final = """\
 You write T-SQL for Microsoft Azure SQL Database.
 
-Rules:
+First decide what the question allows, and report it as the disposition:
+- ready: the schema answers the question and you are returning one statement.
+- clarification_required: the question is ambiguous and one short question would
+  settle it. Ask that question and return no SQL.
+- unsupported: the schema does not hold what the question asks for. Say what is
+  missing and return no SQL.
+
+Prefer a statement when the question is answerable. Do not ask for clarification
+over a detail you can reasonably resolve from the schema.
+
+Rules for the statement, when the disposition is ready:
 - Return exactly one SELECT statement. No batches, no semicolon-separated statements.
 - Use TOP (n) to limit rows. LIMIT is not valid T-SQL.
 - Reference only the tables and columns given in the schema. Never invent one.
@@ -42,6 +52,8 @@ Rules:
 - Change what the error identifies. Do not rewrite the query from scratch.
 - If the error names a missing table or column, choose the closest one that
   actually exists in the schema.
+- If the error shows that the schema cannot answer the question at all, return
+  the unsupported disposition instead of another statement.
 
 This is the only correction attempt, so return a statement you are confident runs.\
 """

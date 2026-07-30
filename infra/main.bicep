@@ -112,7 +112,7 @@ param allowAzureServices bool = true
 param developerClientIp string = ''
 
 @description('Apply the SecurityControl=Ignore tag that exempts the SQL server from the tenant AzureSQL_PublicNetwork_Modify policy. Without it that policy rewrites publicNetworkAccess to Disabled and every firewall rule fails. Off by default because it weakens a governance control.')
-param applyPublicNetworkPolicyExemptionTag bool = true
+param applyPublicNetworkPolicyExemptionTag bool = false
 
 // -----------------------------------------------------------------------------
 // Feature flags

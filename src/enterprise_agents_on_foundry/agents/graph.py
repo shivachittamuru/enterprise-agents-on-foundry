@@ -25,11 +25,13 @@ from langgraph.graph import END, START, StateGraph
 
 from enterprise_agents_on_foundry.agents.state import (
     MAX_REPAIR_ATTEMPTS,
+    AgentOutcome,
     AgentState,
-    AgentStatus,
     FailureStage,
+    GenerationDisposition,
     NodeName,
 )
+from enterprise_agents_on_foundry.database.tool import QueryStatus
 
 NodeFn = Callable[[AgentState], dict[str, Any]]
 """A node takes the whole state and returns only the keys it changed."""
@@ -41,6 +43,7 @@ __all__ = [
     "compile_graph",
     "placeholder_nodes",
     "route_after_execution",
+    "route_after_generation",
     "route_after_repair",
     "route_after_validation",
 ]
@@ -61,7 +64,20 @@ class NodeSet:
     execute_sql: NodeFn
     repair_sql: NodeFn
     compose_answer: NodeFn
-    fail: NodeFn
+    finalize: NodeFn
+
+
+def route_after_generation(state: AgentState) -> NodeName:
+    """Decide whether there is a statement to check at all.
+
+    Only a ready disposition reaches validation. A clarification or an
+    unsupported answer is a result, not a broken statement, so sending either
+    into the validator would report "not a read-only statement" for a response
+    that never claimed to be one.
+    """
+    if state["disposition"] is GenerationDisposition.READY:
+        return NodeName.VALIDATE_SQL
+    return NodeName.FINALIZE
 
 
 def route_after_validation(state: AgentState) -> NodeName:
@@ -75,22 +91,25 @@ def route_after_validation(state: AgentState) -> NodeName:
         return NodeName.EXECUTE_SQL
     if state["repair_attempts"] < MAX_REPAIR_ATTEMPTS:
         return NodeName.REPAIR_SQL
-    return NodeName.FAIL
+    return NodeName.FINALIZE
 
 
 def route_after_execution(state: AgentState) -> NodeName:
     """Decide where to go once a statement has been run.
 
-    An execution error is repairable under the same budget as a validation
-    error. The two share one counter deliberately: the cost being bounded is the
-    number of statements the model is allowed to write, not the number of times
-    each individual check may fail.
+    A query that matched nothing ran correctly, so it is answered rather than
+    repaired. Rewriting a valid statement because the data disagreed with the
+    question is how an agent talks itself into inventing rows.
+
+    A refusal or a failure is repairable under the same budget as a validation
+    error. The three share one counter deliberately: the cost being bounded is
+    the number of statements the model is allowed to write.
     """
-    if state["execution_error"] is None:
+    if state["query_status"] in {QueryStatus.SUCCESS, QueryStatus.EMPTY}:
         return NodeName.COMPOSE_ANSWER
     if state["repair_attempts"] < MAX_REPAIR_ATTEMPTS:
         return NodeName.REPAIR_SQL
-    return NodeName.FAIL
+    return NodeName.FINALIZE
 
 
 def route_after_repair(state: AgentState) -> NodeName:
@@ -98,10 +117,13 @@ def route_after_repair(state: AgentState) -> NodeName:
 
     Never to execution. A repaired statement is model output and is therefore
     exactly as untrusted as the statement it replaced.
+
+    A repair may also conclude that the question needs clarification or cannot
+    be answered at all, which ends the run rather than producing a statement.
     """
-    if state["sql"] is None:
-        return NodeName.FAIL
-    return NodeName.VALIDATE_SQL
+    if state["disposition"] is GenerationDisposition.READY and state["sql"] is not None:
+        return NodeName.VALIDATE_SQL
+    return NodeName.FINALIZE
 
 
 def build_graph(nodes: NodeSet) -> StateGraph[AgentState, None, AgentState, AgentState]:
@@ -120,22 +142,29 @@ def build_graph(nodes: NodeSet) -> StateGraph[AgentState, None, AgentState, Agen
         (NodeName.EXECUTE_SQL, nodes.execute_sql),
         (NodeName.REPAIR_SQL, nodes.repair_sql),
         (NodeName.COMPOSE_ANSWER, nodes.compose_answer),
-        (NodeName.FAIL, nodes.fail),
+        (NodeName.FINALIZE, nodes.finalize),
     )
     for name, node in registrations:
         graph.add_node(name.value, node)  # type: ignore[call-overload]
 
     graph.add_edge(START, NodeName.LOAD_SCHEMA)
     graph.add_edge(NodeName.LOAD_SCHEMA, NodeName.GENERATE_SQL)
-    graph.add_edge(NodeName.GENERATE_SQL, NodeName.VALIDATE_SQL)
 
+    graph.add_conditional_edges(
+        NodeName.GENERATE_SQL,
+        route_after_generation,
+        {
+            NodeName.VALIDATE_SQL: NodeName.VALIDATE_SQL,
+            NodeName.FINALIZE: NodeName.FINALIZE,
+        },
+    )
     graph.add_conditional_edges(
         NodeName.VALIDATE_SQL,
         route_after_validation,
         {
             NodeName.EXECUTE_SQL: NodeName.EXECUTE_SQL,
             NodeName.REPAIR_SQL: NodeName.REPAIR_SQL,
-            NodeName.FAIL: NodeName.FAIL,
+            NodeName.FINALIZE: NodeName.FINALIZE,
         },
     )
     graph.add_conditional_edges(
@@ -144,7 +173,7 @@ def build_graph(nodes: NodeSet) -> StateGraph[AgentState, None, AgentState, Agen
         {
             NodeName.COMPOSE_ANSWER: NodeName.COMPOSE_ANSWER,
             NodeName.REPAIR_SQL: NodeName.REPAIR_SQL,
-            NodeName.FAIL: NodeName.FAIL,
+            NodeName.FINALIZE: NodeName.FINALIZE,
         },
     )
     graph.add_conditional_edges(
@@ -152,12 +181,12 @@ def build_graph(nodes: NodeSet) -> StateGraph[AgentState, None, AgentState, Agen
         route_after_repair,
         {
             NodeName.VALIDATE_SQL: NodeName.VALIDATE_SQL,
-            NodeName.FAIL: NodeName.FAIL,
+            NodeName.FINALIZE: NodeName.FINALIZE,
         },
     )
 
     graph.add_edge(NodeName.COMPOSE_ANSWER, END)
-    graph.add_edge(NodeName.FAIL, END)
+    graph.add_edge(NodeName.FINALIZE, END)
 
     return graph
 
@@ -174,8 +203,9 @@ def compile_graph(nodes: NodeSet) -> Any:
 
 def placeholder_nodes(
     *,
+    disposition: GenerationDisposition = GenerationDisposition.READY,
     validation_error: str | None = None,
-    execution_error: str | None = None,
+    query_status: QueryStatus = QueryStatus.SUCCESS,
     repair_produces_sql: bool = True,
     repair_fixes: bool = True,
 ) -> NodeSet:
@@ -190,7 +220,16 @@ def placeholder_nodes(
         return {"schema_context": "SalesLT (placeholder schema)"}
 
     def generate_sql(state: AgentState) -> dict[str, Any]:
-        return {"sql": "SELECT TOP 1 1 AS placeholder", "rationale": "placeholder"}
+        if disposition is GenerationDisposition.READY:
+            return {"disposition": disposition, "sql": "SELECT TOP 1 1 AS placeholder", "rationale": "placeholder"}
+        return {
+            "disposition": disposition,
+            "sql": None,
+            "rationale": "placeholder",
+            "clarification_question": "Which year?"
+            if disposition is GenerationDisposition.CLARIFICATION_REQUIRED
+            else None,
+        }
 
     def validate_sql(state: AgentState) -> dict[str, Any]:
         if state["repair_attempts"] > 0 and repair_fixes:
@@ -199,24 +238,44 @@ def placeholder_nodes(
 
     def execute_sql(state: AgentState) -> dict[str, Any]:
         if state["repair_attempts"] > 0 and repair_fixes:
-            return {"execution_error": None}
-        return {"execution_error": execution_error}
+            return {"query_status": QueryStatus.SUCCESS, "execution_error": None}
+        error = (
+            None if query_status in {QueryStatus.SUCCESS, QueryStatus.EMPTY} else f"placeholder {query_status.value}"
+        )
+        return {"query_status": query_status, "execution_error": error}
 
     def repair_sql(state: AgentState) -> dict[str, Any]:
+        if not repair_produces_sql:
+            return {
+                "disposition": None,
+                "sql": None,
+                "repair_attempts": state["repair_attempts"] + 1,
+                "validation_error": None,
+                "execution_error": None,
+                "query_status": None,
+            }
         return {
-            "sql": "SELECT TOP 1 2 AS repaired" if repair_produces_sql else None,
+            "disposition": GenerationDisposition.READY,
+            "sql": "SELECT TOP 1 2 AS repaired",
             "repair_attempts": state["repair_attempts"] + 1,
         }
 
     def compose_answer(state: AgentState) -> dict[str, Any]:
-        return {"answer": "placeholder answer", "status": AgentStatus.SUCCEEDED}
+        outcome = AgentOutcome.EMPTY if state["query_status"] is QueryStatus.EMPTY else AgentOutcome.SUCCEEDED
+        return {"answer": "placeholder answer", "outcome": outcome}
 
-    def fail(state: AgentState) -> dict[str, Any]:
+    def finalize(state: AgentState) -> dict[str, Any]:
+        if state["disposition"] is GenerationDisposition.CLARIFICATION_REQUIRED:
+            return {"outcome": AgentOutcome.CLARIFICATION_REQUIRED}
+        if state["disposition"] is GenerationDisposition.UNSUPPORTED:
+            return {"outcome": AgentOutcome.UNSUPPORTED}
+
+        rejected = state["validation_error"] is not None or state["query_status"] is QueryStatus.REJECTED
         stage = FailureStage.VALIDATION if state["validation_error"] else FailureStage.EXECUTION
         if state["sql"] is None:
             stage = FailureStage.GENERATION
         return {
-            "status": AgentStatus.FAILED,
+            "outcome": AgentOutcome.REJECTED if rejected else AgentOutcome.FAILED,
             "failure_stage": stage,
             "failure_reason": state["validation_error"] or state["execution_error"] or "no statement produced",
         }
@@ -228,5 +287,5 @@ def placeholder_nodes(
         execute_sql=execute_sql,
         repair_sql=repair_sql,
         compose_answer=compose_answer,
-        fail=fail,
+        finalize=finalize,
     )
