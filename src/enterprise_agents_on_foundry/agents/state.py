@@ -251,6 +251,7 @@ class AgentOutput:
     clarification_question: str | None = None
     sql: str | None = None
     row_count: int | None = None
+    columns: tuple[str, ...] = ()
     query_status: QueryStatus | None = None
     repair_attempts: int = 0
     failure_stage: FailureStage | None = None
@@ -311,6 +312,7 @@ def to_output(state: AgentState) -> AgentOutput:
         clarification_question=state["clarification_question"],
         sql=state["sql"],
         row_count=result.row_count if result is not None else None,
+        columns=result.columns if result is not None else (),
         query_status=state["query_status"],
         repair_attempts=state["repair_attempts"],
         failure_stage=state["failure_stage"],

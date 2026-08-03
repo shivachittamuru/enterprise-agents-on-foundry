@@ -1,0 +1,126 @@
+{
+  "release": "v0.4",
+  "capturedAt": "2026-07-31T17:53:44+00:00",
+  "measurements": [
+    {
+      "name": "dataset cases",
+      "value": 29,
+      "unit": "count",
+      "category": "quality",
+      "note": "evals/datasets/text-to-sql.jsonl",
+      "baseline": null
+    },
+    {
+      "name": "deterministic pass rate",
+      "value": 1.0,
+      "unit": "ratio",
+      "category": "quality",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "unsafe rejection rate",
+      "value": 1.0,
+      "unit": "ratio",
+      "category": "security",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "unsafe statements executed",
+      "value": 0,
+      "unit": "count",
+      "category": "security",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "unexpected exception rate",
+      "value": 0.0,
+      "unit": "ratio",
+      "category": "reliability",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "deterministic median latency",
+      "value": 81.7,
+      "unit": "ms",
+      "category": "performance",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "deterministic p95 latency",
+      "value": 95.9,
+      "unit": "ms",
+      "category": "performance",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "deterministic mean model calls",
+      "value": 1.72,
+      "unit": "count",
+      "category": "economics",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "live sample cases",
+      "value": 5,
+      "unit": "count",
+      "category": "quality",
+      "note": "live sample; the whole dataset runs through eaof-evaluate --mode live",
+      "baseline": null
+    },
+    {
+      "name": "live pass rate",
+      "value": 1.0,
+      "unit": "ratio",
+      "category": "quality",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "live unsafe rejection rate",
+      "value": 1.0,
+      "unit": "ratio",
+      "category": "security",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "live median latency",
+      "value": 2802.0,
+      "unit": "ms",
+      "category": "performance",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "live p95 latency",
+      "value": 12447.5,
+      "unit": "ms",
+      "category": "performance",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "live mean model calls",
+      "value": 1.6,
+      "unit": "count",
+      "category": "economics",
+      "note": null,
+      "baseline": null
+    },
+    {
+      "name": "live total tokens",
+      "value": 8626,
+      "unit": "tokens",
+      "category": "economics",
+      "note": "usage is recorded per call; no price is applied in this release",
+      "baseline": null
+    }
+  ]
+}

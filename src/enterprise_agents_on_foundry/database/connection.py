@@ -35,8 +35,12 @@ type SqlConnection = Any
 """pyodbc is an optional native dependency, so its types are not available here."""
 
 # A resource identifier, not a credential. The token itself is requested at call
-# time and is never stored on this module.
-_TOKEN_SCOPE: Final = "https://database.windows.net/.default"  # noqa: S105
+# time and is never stored on this module. The doubled slash is deliberate:
+# credentials that translate a scope into a legacy resource strip the trailing
+# "/.default", and Azure SQL only accepts tokens whose audience keeps the
+# trailing slash ("https://database.windows.net/"). Without it the driver
+# reports "The server is not currently configured to accept this token".
+_TOKEN_SCOPE: Final = "https://database.windows.net//.default"  # noqa: S105
 
 # SQL_COPT_SS_ACCESS_TOKEN. Passing the token through this attribute keeps it out
 # of the connection string, and therefore out of anything that logs one.
@@ -92,13 +96,25 @@ def assert_odbc_driver_available() -> None:
     raise DatabaseConnectionError(f"{_ODBC_INSTALL_HINT}\n\nDrivers currently visible: {found}")
 
 
-def _access_token_struct() -> bytes:
-    """Acquire an Entra access token in the layout the ODBC driver expects."""
+def _access_token_struct(settings: Settings) -> bytes:
+    """Acquire an Entra access token in the layout the ODBC driver expects.
+
+    A developer signed in to several tenants can otherwise receive a token from
+    whichever tenant the identity chain considers current, and Azure SQL refuses
+    a token minted elsewhere, so the configured tenant is requested explicitly.
+    """
     from azure.identity import DefaultAzureCredential
 
+    tenant = settings.azure_tenant_id
+    allowed = [tenant] if tenant else []
+    requested = {"tenant_id": tenant} if tenant else {}
+
     try:
-        credential = DefaultAzureCredential(exclude_interactive_browser_credential=False)
-        token = credential.get_token(_TOKEN_SCOPE)
+        credential = DefaultAzureCredential(
+            exclude_interactive_browser_credential=False,
+            additionally_allowed_tenants=allowed,
+        )
+        token = credential.get_token(_TOKEN_SCOPE, **requested)
     except Exception as error:
         raise DatabaseConnectionError(
             f"Could not acquire a Microsoft Entra token for Azure SQL: {type(error).__name__}. "
@@ -121,7 +137,7 @@ def _open_connection(target: DatabaseTarget, settings: Settings) -> SqlConnectio
     try:
         return pyodbc.connect(
             target.odbc_connection_string(connect_timeout=settings.database_connect_timeout_seconds),
-            attrs_before={_SQL_COPT_SS_ACCESS_TOKEN: _access_token_struct()},
+            attrs_before={_SQL_COPT_SS_ACCESS_TOKEN: _access_token_struct(settings)},
             timeout=settings.database_connect_timeout_seconds,
         )
     except pyodbc.Error as error:

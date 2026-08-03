@@ -9,6 +9,14 @@ Defence in depth still applies: the durable control is the read-only database
 role granted to the agent identity. This validator exists so that an unsafe
 statement fails fast and legibly, and so that later releases have one place to
 wire agent-generated SQL through.
+
+Known limitations, all deliberate. This is a lexical check, not a T-SQL parser.
+The forbidden-keyword scan reads the whole statement, including string literals
+and quoted identifiers, so ``WHERE Comment = 'please update me'`` and
+``SELECT [Update]`` are refused although both are read-only. That direction of
+error is the safe one and it is not worth a grammar to remove. Deciding whether
+a keyword occupies a syntactic position that could mutate data needs parser-level
+understanding, so no attempt is made to guess.
 """
 
 from __future__ import annotations
@@ -25,8 +33,12 @@ _AZURE_SQL_SUFFIX: Final = ".database.windows.net"
 _SERVER_NAME_PATTERN: Final = re.compile(r"^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$")
 _DATABASE_NAME_PATTERN: Final = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
 
-_LINE_COMMENT: Final = re.compile(r"--[^\n]*")
-_BLOCK_COMMENT: Final = re.compile(r"/\*.*?\*/", re.DOTALL)
+_LINE_COMMENT_START: Final = "--"
+_BLOCK_COMMENT_START: Final = "/*"
+_BLOCK_COMMENT_END: Final = "*/"
+
+_QUOTE_CLOSERS: Final[dict[str, str]] = {"'": "'", '"': '"', "[": "]"}
+"""Openers that suspend SQL syntax until their closer, with a doubled closer as the escape."""
 
 _ALLOWED_LEADING_KEYWORDS: Final[tuple[str, ...]] = ("SELECT", "WITH")
 
@@ -75,36 +87,54 @@ __all__ = [
 
 
 def strip_sql_comments(sql: str) -> str:
-    """Remove line and block comments so keywords cannot hide inside them."""
-    without_blocks = _BLOCK_COMMENT.sub(" ", sql)
-    return _LINE_COMMENT.sub(" ", without_blocks)
+    """Remove line and block comments so keywords cannot hide inside them.
+
+    Quoted text is copied through untouched. A regex pass would read the ``--``
+    in ``WHERE code = 'a--b'`` as a comment and return a truncated statement,
+    and that statement, not the original, is what reaches the driver.
+    """
+    kept: list[str] = []
+    index = 0
+    while index < len(sql):
+        char = sql[index]
+        if char in _QUOTE_CLOSERS:
+            end = _end_of_quoted(sql, index)
+            kept.append(sql[index:end])
+            index = end
+        elif sql.startswith(_LINE_COMMENT_START, index):
+            newline = sql.find("\n", index)
+            index = len(sql) if newline == -1 else newline
+            kept.append(" ")
+        elif sql.startswith(_BLOCK_COMMENT_START, index):
+            end = sql.find(_BLOCK_COMMENT_END, index + len(_BLOCK_COMMENT_START))
+            index = len(sql) if end == -1 else end + len(_BLOCK_COMMENT_END)
+            kept.append(" ")
+        else:
+            kept.append(char)
+            index += 1
+    return "".join(kept)
 
 
 def split_statements(sql: str) -> list[str]:
-    """Split on semicolons that sit outside string literals.
+    """Split on semicolons that sit outside quoted text.
 
-    Naively splitting on ``;`` would misread a literal such as ``'a;b'`` as two
-    statements, so single quotes are tracked, including the doubled-quote escape.
+    Naively splitting on ``;`` would misread ``'a;b'`` or ``[a;b]`` as two
+    statements, so string literals and quoted identifiers are skipped whole. An
+    unterminated quote swallows the rest of the input, which cannot smuggle a
+    second statement past the keyword check that follows.
     """
     statements: list[str] = []
     current: list[str] = []
-    in_string = False
     index = 0
 
     while index < len(sql):
         char = sql[index]
-        if in_string:
-            if char == "'":
-                if index + 1 < len(sql) and sql[index + 1] == "'":
-                    current.append("''")
-                    index += 2
-                    continue
-                in_string = False
-            current.append(char)
-        elif char == "'":
-            in_string = True
-            current.append(char)
-        elif char == ";":
+        if char in _QUOTE_CLOSERS:
+            end = _end_of_quoted(sql, index)
+            current.append(sql[index:end])
+            index = end
+            continue
+        if char == ";":
             statements.append("".join(current))
             current = []
         else:
@@ -113,6 +143,20 @@ def split_statements(sql: str) -> list[str]:
 
     statements.append("".join(current))
     return [statement.strip() for statement in statements if statement.strip()]
+
+
+def _end_of_quoted(sql: str, start: int) -> int:
+    """Index just past the quoted run that opens at ``start``, or the end of input."""
+    closer = _QUOTE_CLOSERS[sql[start]]
+    index = start + 1
+    while index < len(sql):
+        if sql[index] == closer:
+            if index + 1 < len(sql) and sql[index + 1] == closer:
+                index += 2
+                continue
+            return index + 1
+        index += 1
+    return len(sql)
 
 
 def assert_read_only_sql(sql: str) -> str:

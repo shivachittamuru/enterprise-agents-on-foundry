@@ -30,6 +30,7 @@ database = [
 # 0 ready, 1 a check failed, 2 the check could not run.
 eaof-verify = "enterprise_agents_on_foundry.cli.verify:main"
 eaof-db-info = "enterprise_agents_on_foundry.cli.database_info:main"
+eaof-evaluate = "enterprise_agents_on_foundry.cli.evaluate:main"
 
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]

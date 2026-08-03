@@ -20,6 +20,7 @@ __all__ = [
     "ConfigurationError",
     "DatabaseConnectionError",
     "EaofError",
+    "EvaluationDatasetError",
     "ModelOutputError",
     "QueryValidationError",
     "UnsafeDatabaseTargetError",
@@ -52,3 +53,7 @@ class QueryValidationError(EaofError):
 
 class ModelOutputError(EaofError):
     """The model returned output that does not satisfy the expected schema."""
+
+
+class EvaluationDatasetError(EaofError):
+    """An evaluation dataset is unreadable, malformed, or self-contradictory."""
