@@ -28,8 +28,7 @@ The v0.1 work order specified one inexpensive model deployment using
 
 ## Evidence
 
-Two commands were run against subscription `MCAPS-Hybrid-ShivaChittamuru`
-(`1fad602f-d06f-46af-8f70-78a2c2c53b24`) on 2026-07-27.
+Two commands were run against subscription on 2026-07-27.
 
 ```console
 az cognitiveservices model list --location westus3
