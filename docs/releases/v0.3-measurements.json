@@ -1,6 +1,6 @@
 {
   "release": "v0.3",
-  "capturedAt": "2026-07-28T19:06:04+00:00",
+  "capturedAt": "2026-08-04T06:17:41+00:00",
   "measurements": [
     {
       "name": "graph nodes",
@@ -12,7 +12,7 @@
     },
     {
       "name": "graph edges",
-      "value": 13,
+      "value": 14,
       "unit": "count",
       "category": "graph",
       "note": "v0.1 wired start, agent, tools",
@@ -60,7 +60,7 @@
     },
     {
       "name": "happy path graph overhead",
-      "value": 60.1,
+      "value": 64.8,
       "unit": "ms",
       "category": "agent",
       "note": "scripted model, graph only",
@@ -68,7 +68,7 @@
     },
     {
       "name": "repair path graph overhead",
-      "value": 34.8,
+      "value": 44.9,
       "unit": "ms",
       "category": "agent",
       "note": "one correction included",

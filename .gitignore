@@ -46,3 +46,5 @@ reports/local/
 # OS
 .DS_Store
 Thumbs.db
+
+docs/releases/roadmap.md

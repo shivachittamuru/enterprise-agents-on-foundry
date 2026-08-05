@@ -413,35 +413,6 @@ graph sends the exact validation or database error to one repair attempt. After
 that attempt, it returns a structured failure instead of executing uncertain SQL
 or inventing an answer.
 
-## Release progression
-
-The curriculum adds one architectural concern at a time. Releases v0.1 through
-v0.3 establish the Azure foundation, Python boundaries, and explicit LangGraph
-agent. The planned sequence is:
-
-| Release | Learning checkpoint |
-| --- | --- |
-| v0.1 | Brownfield baseline and new repository |
-| v0.2 | `uv` packaging and clean source layout |
-| v0.3 | LangGraph 1.2 Text-to-SQL graph |
-| v0.4 | Deterministic safety and evaluation |
-| v0.5 | Foundry models and identity |
-| v0.6 | Foundry hosted-agent deployment |
-| v0.7 | OpenTelemetry and economics scorecard |
-| v0.8 | Durable PostgreSQL checkpointing |
-| v0.9 | Foundry Memory comparison |
-| v0.10 | Foundry IQ business glossary |
-| v0.11 | Governance and human approval |
-| v0.12 | Teams and Microsoft 365 distribution |
-| v0.13 | External-hosting comparison |
-
-See the [roadmap](docs/roadmap.md) for the planned sequence. Version numbers for
-future releases describe curriculum intent, not committed delivery dates. The
-roadmap also maps the project across models, tools, knowledge, runtime, memory,
-observability, governance, and distribution, and defines the performance,
-reliability, quality, economics, operational-control, and security evidence each
-release should preserve.
-
 ## Reference project
 
 The brownfield project lives at `../langgraph-agents-on-azure`. It is treated as

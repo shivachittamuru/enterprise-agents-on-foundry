@@ -14,4 +14,3 @@ This repository is a notebook-first learning project for building enterprise age
 * Do not modify unrelated files or infrastructure unless the task explicitly requires it.
 * Before implementing, inspect the existing code and reuse established project boundaries.
 * After each bounded task, report files changed, commands run, checks passed, and unresolved issues.
-* Treat docs/roadmap.md as the canonical release sequence; do not renumber or redefine releases without explicit approval.
