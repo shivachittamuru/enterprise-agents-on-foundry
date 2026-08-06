@@ -218,6 +218,7 @@ output AZURE_FOUNDRY_RESOURCE_NAME string = platform.outputs.foundryAccountName
 output AZURE_FOUNDRY_PROJECT_NAME string = platform.outputs.foundryProjectName
 output AZURE_FOUNDRY_PROJECT_ENDPOINT string = platform.outputs.foundryProjectEndpoint
 output AZURE_FOUNDRY_ACCOUNT_ENDPOINT string = platform.outputs.foundryAccountEndpoint
+output AZURE_AI_PROJECT_ID string = platform.outputs.foundryProjectId
 
 output AZURE_MODEL_DEPLOYMENT_NAME string = modelDeploymentName
 output AZURE_MODEL_NAME string = modelName
@@ -233,6 +234,8 @@ output AZURE_LOG_ANALYTICS_WORKSPACE_NAME string = platform.outputs.logAnalytics
 output AZURE_KEY_VAULT_NAME string = platform.outputs.keyVaultName
 output AZURE_MANAGED_IDENTITY_NAME string = platform.outputs.managedIdentityName
 output AZURE_MANAGED_IDENTITY_CLIENT_ID string = platform.outputs.managedIdentityClientId
+
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = platform.outputs.containerRegistryLoginServer
 
 output ENABLE_CONTAINER_REGISTRY bool = enableContainerRegistry
 output ENABLE_AZURE_AI_SEARCH bool = enableAzureAiSearch

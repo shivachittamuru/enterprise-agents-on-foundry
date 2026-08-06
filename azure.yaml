@@ -2,38 +2,56 @@
 
 name: enterprise-agents-on-foundry
 metadata:
-  template: enterprise-agents-on-foundry@0.1.0
-
-# v0.1 provisions infrastructure only. No service is deployed, because the
-# LangGraph application is not migrated in this release and hosted agents are
-# explored later. Adding a services section before there is something to host
-# would only create an empty deployment target.
-
+    template: enterprise-agents-on-foundry@0.1.0
+services:
+    ai-project:
+        host: azure.ai.project
+        endpoint: ${AZURE_FOUNDRY_PROJECT_ENDPOINT}
+    text-to-sql-agent:
+        project: .
+        host: azure.ai.agent
+        language: docker
+        docker:
+            remoteBuild: true
+        uses:
+            - ai-project
+        env:
+            AZURE_FOUNDRY_ACCOUNT_ENDPOINT: ${AZURE_FOUNDRY_ACCOUNT_ENDPOINT}
+            AZURE_MODEL_DEPLOYMENT_NAME: ${AZURE_MODEL_DEPLOYMENT_NAME}
+            AZURE_SQL_DATABASE_NAME: ${AZURE_SQL_DATABASE_NAME}
+            AZURE_SQL_SERVER_FQDN: ${AZURE_SQL_SERVER_FQDN}
+            DATABASE_MAX_RESULT_ROWS: "500"
+            DATABASE_QUERY_TIMEOUT_SECONDS: "30"
+            DATASET_VARIANT: adventureworks-lt
+        container:
+            resources:
+                cpu: "0.5"
+                memory: 1.0Gi
+        description: Single-turn, non-streaming Text-to-SQL agent over AdventureWorksLT, served through the Responses protocol.
+        kind: hosted
+        name: text-to-sql-agent
+        protocols:
+            - protocol: responses
+              version: 2.0.0
+        startupCommand: python -m enterprise_agents_on_foundry.hosting.app
 infra:
-  provider: bicep
-  path: infra
-  module: main
-
+    provider: bicep
+    path: infra
+    module: main
 hooks:
-  preprovision:
-    windows:
-      shell: pwsh
-      continueOnError: false
-      interactive: true
-      run: uv run python scripts/preprovision_check.py
-    posix:
-      shell: sh
-      continueOnError: false
-      interactive: true
-      run: uv run python scripts/preprovision_check.py
-  postprovision:
-    windows:
-      shell: pwsh
-      continueOnError: false
-      interactive: false
-      run: uv run python scripts/write_env_from_azd.py
-    posix:
-      shell: sh
-      continueOnError: false
-      interactive: false
-      run: uv run python scripts/write_env_from_azd.py
+    postprovision:
+        windows:
+            shell: pwsh
+            run: uv run python scripts/write_env_from_azd.py
+        posix:
+            shell: sh
+            run: uv run python scripts/write_env_from_azd.py
+    preprovision:
+        windows:
+            shell: pwsh
+            run: uv run python scripts/preprovision_check.py
+            interactive: true
+        posix:
+            shell: sh
+            run: uv run python scripts/preprovision_check.py
+            interactive: true

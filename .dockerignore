@@ -1,0 +1,27 @@
+# Keep the build context small and never ship local secrets or dev-only files.
+.git
+.github
+.gitignore
+.vscode
+
+# Local Azure and environment state.
+.azure
+.env
+.env.*
+!.env.example
+
+# Python caches and virtual environments.
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Not needed by the running agent.
+notebooks
+tests
+docs
+evals
+scripts
+database/seeds

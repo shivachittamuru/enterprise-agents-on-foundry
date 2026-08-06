@@ -88,6 +88,7 @@ param enablePrivateNetworking bool
 
 var namePrefix = 'eaof-${environmentName}'
 var publicNetworkAccess = enablePrivateNetworking ? 'Disabled' : 'Enabled'
+var containerRegistryName = 'cr${replace(namePrefix, '-', '')}${suffix}'
 
 // Private networking wins over the SQL switch, so enabling private endpoints can
 // never leave a public endpoint behind.
@@ -168,7 +169,7 @@ module registry 'registry.bicep' = if (enableContainerRegistry) {
   params: {
     location: location
     tags: tags
-    containerRegistryName: 'cr${replace(namePrefix, '-', '')}${suffix}'
+    containerRegistryName: containerRegistryName
   }
 }
 
@@ -179,8 +180,11 @@ module rbac 'rbac.bicep' = {
     keyVaultName: keyVault.outputs.keyVaultName
     applicationInsightsName: monitoring.outputs.applicationInsightsName
     managedIdentityPrincipalId: managedIdentity.outputs.principalId
+    foundryProjectPrincipalId: foundry.outputs.projectPrincipalId
     deployerPrincipalId: deployerPrincipalId
     deployerPrincipalType: deployerPrincipalType
+    enableContainerRegistry: enableContainerRegistry
+    containerRegistryName: containerRegistryName
   }
 }
 
@@ -191,6 +195,7 @@ module rbac 'rbac.bicep' = {
 output foundryAccountName string = foundry.outputs.accountName
 output foundryAccountEndpoint string = foundry.outputs.accountEndpoint
 output foundryProjectName string = foundry.outputs.projectName
+output foundryProjectId string = foundry.outputs.projectId
 output foundryProjectEndpoint string = foundry.outputs.projectEndpoint
 
 output sqlServerName string = sql.outputs.serverName
@@ -204,3 +209,4 @@ output keyVaultName string = keyVault.outputs.keyVaultName
 output managedIdentityName string = managedIdentity.outputs.managedIdentityName
 output managedIdentityClientId string = managedIdentity.outputs.clientId
 output containerRegistryName string = enableContainerRegistry ? registry!.outputs.containerRegistryName : ''
+output containerRegistryLoginServer string = enableContainerRegistry ? registry!.outputs.loginServer : ''

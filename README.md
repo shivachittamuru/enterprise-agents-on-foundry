@@ -2,7 +2,7 @@
 title: Enterprise Agents on Microsoft Foundry
 description: A notebook-first learning project for building a typed, testable, and read-only LangGraph Text-to-SQL agent on Microsoft Foundry and Azure SQL.
 author: Shiva Chittamuru
-ms.date: 2026-07-30
+ms.date: 2026-08-05
 ms.topic: tutorial
 keywords:
   - Microsoft Foundry
@@ -81,13 +81,23 @@ and database permissions enforce the rules.
 
 ## Current release
 
-`v0.3: Modern LangGraph Text-to-SQL Agent`
+`v0.5: Hosted Agent on Microsoft Foundry`
 
-v0.3 migrates the Text-to-SQL agent onto LangGraph as an explicit `StateGraph`
-with typed state, deterministic read-only validation before any execution, one
-bounded repair attempt, and structured success or failure output. The model has
-no tools and makes no routing decision. See
-[docs/releases/v0.3.md](docs/releases/v0.3.md).
+v0.5 packages the agent as a Microsoft Foundry Hosted Agent reached over the
+Responses protocol. The graph is unchanged. What is new is a protocol adapter, a
+container image, and a run-time identity: the agent authenticates to the model
+and to Azure SQL as itself rather than as you. See
+[docs/releases/v0.5.md](docs/releases/v0.5.md).
+
+Earlier checkpoints remain readable in order.
+
+| Release | Theme | Notes |
+| --- | --- | --- |
+| v0.1 | Azure foundation | [docs/releases/v0.1.md](docs/releases/v0.1.md) |
+| v0.2 | Modern Python foundation | [docs/releases/v0.2.md](docs/releases/v0.2.md) |
+| v0.3 | Explicit LangGraph agent | [docs/releases/v0.3.md](docs/releases/v0.3.md) |
+| v0.4 | Model and tool contracts | [docs/releases/v0.4.md](docs/releases/v0.4.md) |
+| v0.5 | Hosted Agent on Foundry | [docs/releases/v0.5.md](docs/releases/v0.5.md) |
 
 ## Choose your learning path
 
@@ -220,10 +230,12 @@ together.
 | 2 | [01: Modern Python foundation](notebooks/01_modern_python_foundation.ipynb) | Explore typed settings, errors, package boundaries, database access, commands, and test separation | No |
 | 3 | [01.1: Explore AdventureWorksLT](notebooks/01.1_explore_adventureworks.ipynb) | Inspect schemas, tables, keys, safe queries, and the metadata supplied to the agent | Yes for live queries |
 | 4 | [02: Modern LangGraph Text-to-SQL](notebooks/02_modern_langgraph_text_to_sql.ipynb) | Follow typed graph state, routing, validation, repair, execution, structured success, and structured failure | No for scripted scenarios; yes for the live run |
+| 5 | [03: Model and tool contracts](notebooks/03_model_and_tool_contracts.ipynb) | Read the typed model and query-tool boundaries, the four query statuses, and the six terminal outcomes | No |
+| 6 | [04: Hosted Agent on Foundry](notebooks/04_hosted_agent_on_foundry.ipynb) | Trace the Responses adapter, the container boundary, the three identities, and the deployed endpoint | No for the adapter and design cells; yes for the remote call |
 
-Notebooks 01.1 and 02 handle an unavailable database by printing a concise skip
-reason. Install ODBC Driver 18, sign in with `az login`, and provision the Azure
-environment before expecting live database output.
+Notebooks 01.1, 02, and 04 handle an unavailable database or an undeployed agent
+by printing a concise skip reason. Install ODBC Driver 18, sign in with
+`az login`, and provision the Azure environment before expecting live output.
 
 ## Provision the Azure learning environment
 
@@ -251,9 +263,17 @@ azd provision
 ```
 
 The `azure.yaml` hooks run the pre-provision check again and then copy Bicep
-outputs into `.env`. No application service is deployed in v0.3; the Python
-agent runs from your workstation against the provisioned Foundry and Azure SQL
-resources.
+outputs into `.env`. Provisioning alone leaves the agent running from your
+workstation. Deploying it as a Hosted Agent is a separate step:
+
+```console
+azd deploy text-to-sql-agent
+azd ai agent show text-to-sql-agent
+```
+
+The deployed agent runs under its own Entra identity, which starts with no
+permissions. Granting that identity database and model access is described in
+the [Hosted Agent architecture](docs/architecture/v0.5-hosted-agent.md).
 
 Grant the signed-in learner read-only access to AdventureWorksLT and verify the
 environment:
@@ -285,24 +305,31 @@ The package is organized by responsibility rather than by notebook or release.
 
 ```text
 Question
+  -> hosting/responses.py     maps one protocol turn onto the agent contract
   -> agents/state.py          validates input and defines working state
   -> agents/graph.py          chooses the next node with deterministic routes
   -> agents/nodes.py          performs one operation per graph node
   -> agents/model.py          calls the configured Foundry model
   -> database/validation.py   accepts or rejects generated SQL
+  -> database/tool.py         reports one typed outcome per statement
   -> database/connection.py   executes through one read-only boundary
   -> AgentOutput              returns the same shape for success or failure
 ```
+
+The protocol boundary is optional. `hosting/` imports `agents/`, and nothing in
+`agents/` imports `hosting/`, so the agent runs identically in a notebook, a
+test, and a container.
 
 The main division of responsibility is:
 
 | Component | Allowed responsibility | Explicitly not responsible for |
 | --- | --- | --- |
-| Model | Draft SQL, repair it once, summarize returned rows | Routing, execution, credentials, or deciding whether SQL is safe |
+| Model | Draft SQL, repair it once, decline, summarize returned rows | Routing, execution, credentials, or deciding whether SQL is safe |
 | LangGraph | Move typed state through a fixed workflow | Interpreting database permissions or hiding failures |
 | SQL validator | Enforce one read-only `SELECT` or `WITH` statement | Deciding whether the answer is useful |
 | Database client | Revalidate, execute, enforce timeout and row limits | Generating or repairing SQL |
 | Database identity | Provide the final `db_datareader` safety boundary | Trusting application validation |
+| Protocol adapter | Map one turn in and one sentence out | Any agent logic, and leaking an internal reason |
 
 ## Useful commands
 
@@ -338,7 +365,8 @@ normal development feedback loop.
 | Path | What to find there |
 | --- | --- |
 | `src/enterprise_agents_on_foundry/agents/` | Typed state, graph topology, nodes, prompts, model boundary, and schema context |
-| `src/enterprise_agents_on_foundry/database/` | Target validation, Microsoft Entra connection, read-only execution, and result models |
+| `src/enterprise_agents_on_foundry/database/` | Target validation, Microsoft Entra connection, read-only execution, the query tool, and result models |
+| `src/enterprise_agents_on_foundry/hosting/` | The Responses protocol adapter and the Hosted Agent entry point |
 | `src/enterprise_agents_on_foundry/config/` | The one typed settings boundary for `.env` and process configuration |
 | `src/enterprise_agents_on_foundry/observability/` | Timing and release measurement helpers |
 | `src/enterprise_agents_on_foundry/cli/` | Thin command-line adapters over production package functions |
@@ -348,6 +376,7 @@ normal development feedback loop.
 | `tests/unit/` | Fast tests with fake dependencies and no Azure access |
 | `tests/integration/` | Live tests marked `azure` |
 | `infra/` | Subscription-scoped Bicep modules and generated deployment artifacts |
+| `Dockerfile`, `azure.yaml` | The Hosted Agent image and its azd service definition |
 | `docs/architecture/` | Architecture at each shipped checkpoint |
 | `docs/adr/` | Individual architecture decisions and their tradeoffs |
 | `docs/current-state/` | Evidence gathered from the brownfield implementation |
@@ -366,6 +395,10 @@ The project uses multiple controls because no single control is sufficient.
   keywords.
 * The database client repeats validation immediately before execution.
 * The Azure SQL principal has read-only permissions and explicitly denied writes.
+* The deployed agent runs under its own Entra identity, separate from yours, and
+  receives only the roles it needs to call the model and read the database.
+* A protocol response carries one fixed sentence per outcome, so an internal
+  reason, a driver error, or a connection string cannot reach a caller.
 * Query timeout, result row count, repair attempts, and graph recursion are
   bounded in code.
 * Optional infrastructure capabilities remain disabled until the release that

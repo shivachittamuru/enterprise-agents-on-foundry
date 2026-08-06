@@ -69,7 +69,7 @@
       "value": "${AZURE_SQL_APPLY_POLICY_EXEMPTION_TAG=false}"
     },
     "enableContainerRegistry": {
-      "value": "${ENABLE_CONTAINER_REGISTRY=false}"
+      "value": "${ENABLE_CONTAINER_REGISTRY=true}"
     },
     "enableAzureAiSearch": {
       "value": "${ENABLE_AZURE_AI_SEARCH=false}"
@@ -84,7 +84,7 @@
       "value": "${ENABLE_PRIVATE_NETWORKING=false}"
     },
     "enableHostedAgent": {
-      "value": "${ENABLE_HOSTED_AGENT=false}"
+      "value": "${ENABLE_HOSTED_AGENT=true}"
     },
     "enableExternalHosting": {
       "value": "${ENABLE_EXTERNAL_HOSTING=false}"

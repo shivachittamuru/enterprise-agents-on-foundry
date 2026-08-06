@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "azure-identity>=1.25.3",
+    "langchain-azure-ai[hosting]>=1.2.4",
     "langchain-core>=1.2.0",
     "langchain-openai>=1.2.0",
     "langgraph>=1.2.0",
@@ -24,16 +25,35 @@ dependencies = [
 database = [
     "pyodbc>=5.2.0",
 ]
+# The Foundry hosting SDK, needed only to serve the Responses protocol locally
+# or in a Hosted Agent container. Kept optional so the tests and the agent core
+# never depend on the protocol server.
+hosting = [
+    "langchain-azure-ai[hosting]>=1.2.4",
+]
 
 [project.scripts]
 # Thin adapters over package functions. Both return meaningful exit codes:
 # 0 ready, 1 a check failed, 2 the check could not run.
 eaof-verify = "enterprise_agents_on_foundry.cli.verify:main"
 eaof-db-info = "enterprise_agents_on_foundry.cli.database_info:main"
+# Starts the Responses protocol host. Requires the 'hosting' extra and a
+# signed-in identity: uv sync --extra hosting && az login && uv run eaof-host.
+eaof-host = "enterprise_agents_on_foundry.hosting.app:main"
 
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
+
+[[tool.uv.index]]
+# Microsoft-managed devices block direct access to pypi.org and
+# files.pythonhosted.org. Route uv through the approved Central Feed Services
+# proxy instead. default = true disables the implicit PyPI index, so package
+# discovery and wheel downloads both go through the proxy and nothing reaches
+# pypi.org.
+name = "microsoft-cfs"
+url = "https://packagefeedproxy.microsoft.io/pypi/simple"
+default = true
 
 [dependency-groups]
 dev = [
@@ -84,6 +104,11 @@ mypy_path = "src"
 [[tool.mypy.overrides]]
 # pyodbc is an optional extra without bundled stubs.
 module = ["pyodbc.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# The Foundry hosting SDK is an optional extra imported lazily by the host.
+module = ["langchain_azure_ai.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

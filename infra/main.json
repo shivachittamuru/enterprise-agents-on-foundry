@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.45.15.27210",
-      "templateHash": "16783347377849928375"
+      "version": "0.46.1.21595",
+      "templateHash": "519201408089042906"
     }
   },
   "parameters": {
@@ -336,8 +336,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.45.15.27210",
-              "templateHash": "17557027297465107474"
+              "version": "0.46.1.21595",
+              "templateHash": "4247129993977205694"
             }
           },
           "parameters": {
@@ -485,6 +485,7 @@
           "variables": {
             "namePrefix": "[format('eaof-{0}', parameters('environmentName'))]",
             "publicNetworkAccess": "[if(parameters('enablePrivateNetworking'), 'Disabled', 'Enabled')]",
+            "containerRegistryName": "[format('cr{0}{1}', replace(variables('namePrefix'), '-', ''), parameters('suffix'))]",
             "sqlPublicEndpoint": "[and(parameters('sqlPublicNetworkAccessEnabled'), not(parameters('enablePrivateNetworking')))]"
           },
           "resources": [
@@ -517,8 +518,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.45.15.27210",
-                      "templateHash": "12789277890466427414"
+                      "version": "0.46.1.21595",
+                      "templateHash": "8034515455940543672"
                     }
                   },
                   "parameters": {
@@ -642,8 +643,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.45.15.27210",
-                      "templateHash": "5117549709508108988"
+                      "version": "0.46.1.21595",
+                      "templateHash": "4978675148498861866"
                     }
                   },
                   "parameters": {
@@ -725,8 +726,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.45.15.27210",
-                      "templateHash": "16069656753076445445"
+                      "version": "0.46.1.21595",
+                      "templateHash": "360987431658689771"
                     }
                   },
                   "parameters": {
@@ -849,8 +850,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.45.15.27210",
-                      "templateHash": "999919717295082713"
+                      "version": "0.46.1.21595",
+                      "templateHash": "15652818244650629674"
                     }
                   },
                   "parameters": {
@@ -1088,8 +1089,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.45.15.27210",
-                      "templateHash": "10145779260923944526"
+                      "version": "0.46.1.21595",
+                      "templateHash": "14156268112520149268"
                     }
                   },
                   "parameters": {
@@ -1316,7 +1317,7 @@
                     "value": "[parameters('tags')]"
                   },
                   "containerRegistryName": {
-                    "value": "[format('cr{0}{1}', replace(variables('namePrefix'), '-', ''), parameters('suffix'))]"
+                    "value": "[variables('containerRegistryName')]"
                   }
                 },
                 "template": {
@@ -1325,8 +1326,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.45.15.27210",
-                      "templateHash": "14584553531487862305"
+                      "version": "0.46.1.21595",
+                      "templateHash": "4242340396708030793"
                     }
                   },
                   "parameters": {
@@ -1421,11 +1422,20 @@
                   "managedIdentityPrincipalId": {
                     "value": "[reference(resourceId('Microsoft.Resources/deployments', 'identity'), '2025-04-01').outputs.principalId.value]"
                   },
+                  "foundryProjectPrincipalId": {
+                    "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.projectPrincipalId.value]"
+                  },
                   "deployerPrincipalId": {
                     "value": "[parameters('deployerPrincipalId')]"
                   },
                   "deployerPrincipalType": {
                     "value": "[parameters('deployerPrincipalType')]"
+                  },
+                  "enableContainerRegistry": {
+                    "value": "[parameters('enableContainerRegistry')]"
+                  },
+                  "containerRegistryName": {
+                    "value": "[variables('containerRegistryName')]"
                   }
                 },
                 "template": {
@@ -1434,8 +1444,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.45.15.27210",
-                      "templateHash": "8627309321785205454"
+                      "version": "0.46.1.21595",
+                      "templateHash": "14077879669173666378"
                     }
                   },
                   "parameters": {
@@ -1463,6 +1473,12 @@
                         "description": "Principal id of the user-assigned managed identity."
                       }
                     },
+                    "foundryProjectPrincipalId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Principal id of the Foundry project identity that pulls hosted-agent images."
+                      }
+                    },
                     "deployerPrincipalId": {
                       "type": "string",
                       "metadata": {
@@ -1474,13 +1490,29 @@
                       "metadata": {
                         "description": "Principal type of the deploying principal."
                       }
+                    },
+                    "enableContainerRegistry": {
+                      "type": "bool",
+                      "defaultValue": false,
+                      "metadata": {
+                        "description": "Whether an Azure Container Registry was provisioned and needs pull/push role assignments."
+                      }
+                    },
+                    "containerRegistryName": {
+                      "type": "string",
+                      "defaultValue": "",
+                      "metadata": {
+                        "description": "Name of the container registry. Empty when the registry is not provisioned."
+                      }
                     }
                   },
                   "variables": {
                     "azureAiDeveloperRoleId": "64702f94-c441-49e6-a78b-ef80e0188fee",
                     "cognitiveServicesOpenAiUserRoleId": "5e0bd9bd-7b93-4f28-af87-19fc36ad61bd",
                     "keyVaultSecretsUserRoleId": "4633458b-17de-408a-b874-0445c86b69e6",
-                    "monitoringMetricsPublisherRoleId": "3913510d-42f4-4e42-8a64-420c390055eb"
+                    "monitoringMetricsPublisherRoleId": "3913510d-42f4-4e42-8a64-420c390055eb",
+                    "acrPullRoleId": "7f951dda-4ed3-4680-a7ca-43fe172d538d",
+                    "acrPushRoleId": "8311e382-0749-4cb8-b61a-304f252e45ec"
                   },
                   "resources": [
                     {
@@ -1537,12 +1569,48 @@
                         "principalId": "[parameters('managedIdentityPrincipalId')]",
                         "principalType": "ServicePrincipal"
                       }
+                    },
+                    {
+                      "condition": "[parameters('enableContainerRegistry')]",
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName'))]",
+                      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName')), parameters('managedIdentityPrincipalId'), variables('acrPullRoleId'))]",
+                      "properties": {
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('acrPullRoleId'))]",
+                        "principalId": "[parameters('managedIdentityPrincipalId')]",
+                        "principalType": "ServicePrincipal"
+                      }
+                    },
+                    {
+                      "condition": "[parameters('enableContainerRegistry')]",
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName'))]",
+                      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName')), parameters('deployerPrincipalId'), variables('acrPushRoleId'))]",
+                      "properties": {
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('acrPushRoleId'))]",
+                        "principalId": "[parameters('deployerPrincipalId')]",
+                        "principalType": "[parameters('deployerPrincipalType')]"
+                      }
+                    },
+                    {
+                      "condition": "[parameters('enableContainerRegistry')]",
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName'))]",
+                      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('containerRegistryName')), parameters('foundryProjectPrincipalId'), variables('acrPullRoleId'))]",
+                      "properties": {
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('acrPullRoleId'))]",
+                        "principalId": "[parameters('foundryProjectPrincipalId')]",
+                        "principalType": "ServicePrincipal"
+                      }
                     }
                   ],
                   "outputs": {
                     "assignedRoleCount": {
                       "type": "int",
-                      "value": 5
+                      "value": "[add(5, if(parameters('enableContainerRegistry'), 3, 0))]"
                     }
                   }
                 }
@@ -1567,6 +1635,10 @@
             "foundryProjectName": {
               "type": "string",
               "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.projectName.value]"
+            },
+            "foundryProjectId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.projectId.value]"
             },
             "foundryProjectEndpoint": {
               "type": "string",
@@ -1611,6 +1683,10 @@
             "containerRegistryName": {
               "type": "string",
               "value": "[if(parameters('enableContainerRegistry'), reference(resourceId('Microsoft.Resources/deployments', 'registry'), '2025-04-01').outputs.containerRegistryName.value, '')]"
+            },
+            "containerRegistryLoginServer": {
+              "type": "string",
+              "value": "[if(parameters('enableContainerRegistry'), reference(resourceId('Microsoft.Resources/deployments', 'registry'), '2025-04-01').outputs.loginServer.value, '')]"
             }
           }
         }
@@ -1656,6 +1732,10 @@
     "AZURE_FOUNDRY_ACCOUNT_ENDPOINT": {
       "type": "string",
       "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', format('platform-{0}', parameters('environmentName'))), '2025-04-01').outputs.foundryAccountEndpoint.value]"
+    },
+    "AZURE_AI_PROJECT_ID": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', format('platform-{0}', parameters('environmentName'))), '2025-04-01').outputs.foundryProjectId.value]"
     },
     "AZURE_MODEL_DEPLOYMENT_NAME": {
       "type": "string",
@@ -1704,6 +1784,10 @@
     "AZURE_MANAGED_IDENTITY_CLIENT_ID": {
       "type": "string",
       "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', format('platform-{0}', parameters('environmentName'))), '2025-04-01').outputs.managedIdentityClientId.value]"
+    },
+    "AZURE_CONTAINER_REGISTRY_ENDPOINT": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', format('platform-{0}', parameters('environmentName'))), '2025-04-01').outputs.containerRegistryLoginServer.value]"
     },
     "ENABLE_CONTAINER_REGISTRY": {
       "type": "bool",

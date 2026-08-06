@@ -27,11 +27,20 @@ param applicationInsightsName string
 @description('Principal id of the user-assigned managed identity.')
 param managedIdentityPrincipalId string
 
+@description('Principal id of the Foundry project identity that pulls hosted-agent images.')
+param foundryProjectPrincipalId string
+
 @description('Object id of the deploying principal.')
 param deployerPrincipalId string
 
 @description('Principal type of the deploying principal.')
 param deployerPrincipalType string
+
+@description('Whether an Azure Container Registry was provisioned and needs pull/push role assignments.')
+param enableContainerRegistry bool = false
+
+@description('Name of the container registry. Empty when the registry is not provisioned.')
+param containerRegistryName string = ''
 
 // Azure AI Developer: create and run project assets on a Foundry resource.
 var azureAiDeveloperRoleId = '64702f94-c441-49e6-a78b-ef80e0188fee'
@@ -45,6 +54,14 @@ var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
 
 // Monitoring Metrics Publisher: emit telemetry without reading it back.
 var monitoringMetricsPublisherRoleId = '3913510d-42f4-4e42-8a64-420c390055eb'
+
+// AcrPull: pull images from the registry. The runtime identity needs this to
+// start the hosted container.
+var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+
+// AcrPush: push images to the registry. The deployer needs this so azd deploy
+// can publish the built image.
+var acrPushRoleId = '8311e382-0749-4cb8-b61a-304f252e45ec'
 
 resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' existing = {
   name: foundryAccountName
@@ -112,4 +129,43 @@ resource identityMetricsPublisher 'Microsoft.Authorization/roleAssignments@2022-
   }
 }
 
-output assignedRoleCount int = 5
+// --- Container registry ------------------------------------------------------
+// Only present once the registry is provisioned for the hosted-agent release.
+
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
+  name: containerRegistryName
+}
+
+resource identityAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableContainerRegistry) {
+  scope: containerRegistry
+  name: guid(containerRegistry.id, managedIdentityPrincipalId, acrPullRoleId)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
+    principalId: managedIdentityPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource deployerAcrPush 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableContainerRegistry) {
+  scope: containerRegistry
+  name: guid(containerRegistry.id, deployerPrincipalId, acrPushRoleId)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPushRoleId)
+    principalId: deployerPrincipalId
+    principalType: deployerPrincipalType
+  }
+}
+
+// The hosted agent pulls its image with the Foundry project identity, not the
+// user-assigned identity.
+resource foundryProjectAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableContainerRegistry) {
+  scope: containerRegistry
+  name: guid(containerRegistry.id, foundryProjectPrincipalId, acrPullRoleId)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
+    principalId: foundryProjectPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+output assignedRoleCount int = 5 + (enableContainerRegistry ? 3 : 0)
